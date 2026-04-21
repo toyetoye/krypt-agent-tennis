@@ -1,0 +1,60 @@
+# Don't ship into the Docker image what we don't ship to git
+venv/
+env/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs/data
+*.log
+*.pid
+*.tmp
+*.bak
+*.bak_*
+
+# Analysis scratch
+_*.py
+_*.ps1
+_*.csv
+_*.txt
+
+# Keep _elo_snapshot.json though — it's production data
+# (un-ignoring handled in .gitignore already; .dockerignore is separate,
+# and we don't exclude _*.json here, so _elo_snapshot.json ships.)
+
+# Dirs we don't ship
+sackmann_data/
+.git/
+.github/
+.vscode/
+.idea/
+node_modules/
+
+# Old/adjacent codebases
+tennis_multi_v6.py
+tennis_multi_v7.py
+tennis_multi_v8.py
+tennis_multi_fork.py
+tennis_multi.py
+tennis_multi.py.*
+bnc_*
+bounce_*
+momentum_*
+spread_*
+ws_*
+crypto_*
+live_*
+main.py
+config.py
+run_*.py
+run_*.bat
+setup.bat
+
+# Secrets
+.env
+.env.local
+*.key
+
+# Docs/backups not needed in the container
+*.md.bak

@@ -1,0 +1,19 @@
+# Railway configuration for krypt-agent tennis
+# Docs: https://docs.railway.app/guides/config-as-code
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# Keep trying to come back up if something crashes
+restartPolicyType = "always"
+restartPolicyMaxRetries = 10
+
+# Health check: Railway pings this path on the container's exposed port.
+# Our /api endpoint is cheap (just reads in-memory counters).
+healthcheckPath = "/api"
+healthcheckTimeout = 10
+
+# The Dockerfile CMD already sets the right command. Leave startCommand
+# unset so the Dockerfile is the single source of truth.

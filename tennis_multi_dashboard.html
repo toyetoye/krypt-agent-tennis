@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tennis Multi-Strat v7</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0b0e14;
+    --panel: #151a23;
+    --panel-2: #1c222d;
+    --border: #222a36;
+    --muted: #6b7280;
+    --text: #e5e7eb;
+    --dim: #9ca3af;
+    --accent: #3b82f6;
+    --green: #10b981;
+    --red: #ef4444;
+    --amber: #f59e0b;
+    --purple: #a78bfa;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 16px;
+  }
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+  }
+  .meta { font-size: 12px; color: var(--muted); }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 1200px) {
+    .grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 500px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+  }
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 10px;
+  }
+  .card-title { font-size: 15px; font-weight: 600; }
+  .card-cap {
+    font-size: 10px;
+    color: var(--muted);
+    padding: 2px 6px;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    max-width: 60%;
+    text-align: right;
+  }
+  .pnl { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .pnl.up { color: var(--green); }
+  .pnl.down { color: var(--red); }
+  .pnl.flat { color: var(--muted); }
+  .row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    padding: 3px 0;
+    border-top: 1px solid var(--border);
+  }
+  .row:first-of-type { border-top: none; }
+  .row .label { color: var(--muted); }
+  .row .val { font-variant-numeric: tabular-nums; }
+</style>
+<style>
+  .chart-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    height: 380px;
+    margin-bottom: 16px;
+  }
+  .chart-card-title { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+  #chartContainer { position: relative; height: 320px; }
+
+  .section {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 16px;
+  }
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 10px;
+  }
+  .section-title { font-size: 14px; font-weight: 600; }
+  .section-sub { font-size: 11px; color: var(--muted); }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  th, td {
+    padding: 6px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th {
+    color: var(--muted);
+    font-weight: 500;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: var(--panel-2);
+    position: sticky;
+    top: 0;
+  }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.match { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  tr.win  td.pnl-cell { color: var(--green); font-weight: 600; }
+  tr.loss td.pnl-cell { color: var(--red); font-weight: 600; }
+  tr.flat td.pnl-cell { color: var(--muted); }
+  .pill {
+    display: inline-block;
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-weight: 600;
+    margin-right: 3px;
+    color: #0b0e14;
+  }
+  .pill.back { background: #60a5fa; }
+  .pill.lay  { background: #fb923c; }
+  .pill.open { background: var(--amber); color: #0b0e14; }
+  .pill.tp   { background: var(--green); color: #0b0e14; }
+  .pill.sl   { background: var(--red);   color: #fff; }
+  .pill.hc   { background: #b91c1c;      color: #fff; }
+  .pill.mh   { background: var(--muted); color: #0b0e14; }
+  .vtag {
+    display: inline-block;
+    font-size: 10px;
+    padding: 1px 4px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    margin-right: 2px;
+    font-weight: 600;
+    background: var(--panel-2);
+  }
+  .scroll-y { max-height: 400px; overflow-y: auto; }
+
+  .pulse {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: var(--green);
+    border-radius: 50%;
+    margin-right: 6px;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+  .empty {
+    padding: 24px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1><span class="pulse"></span>Tennis Multi-Strat v7
+      <span style="color:var(--muted);font-weight:400;font-size:13px">7 variants · filter-stack experiment</span>
+    </h1>
+    <div class="meta" id="meta">connecting...</div>
+  </div>
+
+  <div class="grid" id="cards"></div>
+
+  <div class="chart-card">
+    <div class="chart-card-title">PnL over time</div>
+    <div id="chartContainer"><canvas id="pnlChart"></canvas></div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">Open Positions</div>
+      <div class="section-sub" id="openSub">0 open</div>
+    </div>
+    <div class="scroll-y">
+      <table id="openTable">
+        <thead>
+          <tr>
+            <th>Age</th>
+            <th>Match</th>
+            <th>Player</th>
+            <th>Type</th>
+            <th class="num">Entry</th>
+            <th class="num">Stake</th>
+            <th>Variants</th>
+          </tr>
+        </thead>
+        <tbody id="openBody"></tbody>
+      </table>
+      <div id="openEmpty" class="empty" style="display:none">No open positions</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">Recent Trades</div>
+      <div class="section-sub" id="closedSub">—</div>
+    </div>
+    <div class="scroll-y">
+      <table id="closedTable">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Match</th>
+            <th>Player</th>
+            <th>Type</th>
+            <th class="num">Entry</th>
+            <th class="num">Exit</th>
+            <th class="num">Held</th>
+            <th class="num">PnL</th>
+            <th>Reason</th>
+            <th>Variants</th>
+          </tr>
+        </thead>
+        <tbody id="closedBody"></tbody>
+      </table>
+      <div id="closedEmpty" class="empty" style="display:none">No closed trades yet</div>
+    </div>
+  </div>
+<script>
+// ----- Color palette -----
+const COLORS = {
+  V1:'#60a5fa', V2:'#10b981', V3:'#f59e0b', V4:'#ef4444',
+  V5:'#a78bfa', V6:'#f472b6', V7:'#22d3ee',
+  A:'#60a5fa', B:'#10b981', C:'#f59e0b', D:'#ef4444'
+};
+const FALLBACK_PALETTE = [
+  '#60a5fa','#10b981','#f59e0b','#ef4444','#a78bfa','#f472b6',
+  '#34d399','#fbbf24','#fb923c','#22d3ee','#c084fc','#facc15'
+];
+function colorFor(label, idx) {
+  return COLORS[label] || FALLBACK_PALETTE[idx % FALLBACK_PALETTE.length];
+}
+
+// ----- Formatters -----
+function fmt$(v) {
+  if (v === null || v === undefined) return '—';
+  const s = (v >= 0 ? '+$' : '-$') + Math.abs(v).toFixed(2);
+  return s;
+}
+function fmtOdds(v) {
+  if (v === null || v === undefined || v === 0) return '—';
+  return Number(v).toFixed(2);
+}
+function fmtPct(v) {
+  if (v === null || v === undefined) return '—';
+  return (v).toFixed(0) + '%';
+}
+function fmtHeld(secs) {
+  if (secs === null || secs === undefined) return '—';
+  if (secs < 60) return secs + 's';
+  const m = Math.floor(secs / 60);
+  const s = Math.round(secs - m*60);
+  return m + 'm' + (s ? ' ' + s + 's' : '');
+}
+function fmtClock(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts * 1000);
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mm = String(d.getMinutes()).padStart(2,'0');
+  const ss = String(d.getSeconds()).padStart(2,'0');
+  return hh+':'+mm+':'+ss;
+}
+function pnlClass(v) {
+  if (v === null || v === undefined) return 'flat';
+  if (v > 0.01) return 'up';
+  if (v < -0.01) return 'down';
+  return 'flat';
+}
+function winLossRowClass(pnl) {
+  if (pnl === null || pnl === undefined) return 'flat';
+  if (pnl > 0.01) return 'win';
+  if (pnl < -0.01) return 'loss';
+  return 'flat';
+}
+function reasonPill(reason) {
+  const map = {
+    'take_profit': ['tp','TP'],
+    'stop_loss':   ['sl','SL'],
+    'hard_cap':    ['hc','HC'],
+    'max_hold':    ['mh','MH'],
+    'open':        ['open','OPEN'],
+  };
+  const cfg = map[reason] || ['mh', reason || '—'];
+  return '<span class="pill ' + cfg[0] + '">' + cfg[1] + '</span>';
+}
+function typePill(t) {
+  if (t === 'back') return '<span class="pill back">BACK</span>';
+  if (t === 'lay')  return '<span class="pill lay">LAY</span>';
+  return '<span class="pill mh">' + (t || '—').toUpperCase() + '</span>';
+}
+function variantTags(labels, allLabels) {
+  // Show ALL variant labels, coloring only those present.
+  const set = new Set(labels);
+  return allLabels.map((lbl, idx) => {
+    const on = set.has(lbl);
+    const color = colorFor(lbl, idx);
+    const style = on
+      ? ('background:' + color + '22; border-color:' + color + '; color:' + color)
+      : ('color:var(--muted); opacity:0.3');
+    return '<span class="vtag" style="'+style+'">'+lbl+'</span>';
+  }).join('');
+}
+</script>
+<script>
+let chart = null;
+
+// ----- Variant cards (top grid) -----
+function renderCards(data) {
+  const grid = document.getElementById('cards');
+  grid.innerHTML = '';
+  data.strategies.forEach((s, idx) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const c = colorFor(s.label, idx);
+    card.style.borderColor = c;
+    card.innerHTML = `
+      <div class="card-header">
+        <div class="card-title" style="color: ${c}">${s.label}</div>
+        <div class="card-cap" title="${s.desc || ''}">${s.desc || 'control'}</div>
+      </div>
+      <div class="pnl ${pnlClass(s.total_pnl)}">${fmt$(s.total_pnl)}</div>
+      <div class="row"><span class="label">Trades</span><span class="val">${s.trades}</span></div>
+      <div class="row"><span class="label">W / L</span><span class="val">${s.winning} / ${s.losing}</span></div>
+      <div class="row"><span class="label">Win rate</span><span class="val">${fmtPct(s.win_rate)}</span></div>
+      <div class="row"><span class="label">Open</span><span class="val">${s.open_bets}</span></div>
+      ${s.entries_blocked_tier ? `<div class="row"><span class="label">Blk: tier</span><span class="val">${s.entries_blocked_tier}</span></div>` : ''}
+      ${s.entries_blocked_entry_state ? `<div class="row"><span class="label">Blk: state</span><span class="val">${s.entries_blocked_entry_state}</span></div>` : ''}
+      ${s.entries_blocked_odds_band ? `<div class="row"><span class="label">Blk: odds</span><span class="val">${s.entries_blocked_odds_band}</span></div>` : ''}
+      ${s.entries_blocked_loss_streak ? `<div class="row"><span class="label">Blk: cooldown</span><span class="val">${s.entries_blocked_loss_streak}</span></div>` : ''}
+      ${s.entries_blocked_doubles ? `<div class="row"><span class="label">Blk: doubles</span><span class="val">${s.entries_blocked_doubles}</span></div>` : ''}
+      ${s.entries_blocked_lay ? `<div class="row"><span class="label">Blk: LAY</span><span class="val">${s.entries_blocked_lay}</span></div>` : ''}
+    `;
+    grid.appendChild(card);
+  });
+  const m = document.getElementById('meta');
+  const calls = data.feed?.requests_used_session ?? data.feed?.requests_used ?? 0;
+  const live = data.feed?.live_matches ?? 0;
+  m.textContent = `elapsed ${data.elapsed_min?.toFixed(1) ?? '0.0'}m  |  ${live} live  |  ${calls} API calls`;
+}
+
+// ----- PnL chart -----
+function renderChart(data) {
+  const labels = (data.history || []).map(h => (h.t / 60).toFixed(1));
+  const variantLabels = data.strategies.map(s => s.label);
+  const series = {};
+  for (const lbl of variantLabels) {
+    series[lbl] = (data.history || []).map(h => (h.pnl && h.pnl[lbl] !== undefined) ? h.pnl[lbl] : null);
+  }
+  const datasets = Object.entries(series).map(([label, vals], idx) => {
+    const c = colorFor(label, idx);
+    return {
+      label: label,
+      data: vals,
+      borderColor: c,
+      backgroundColor: c + '22',
+      borderWidth: 2,
+      tension: 0.15,
+      pointRadius: 0,
+    };
+  });
+  if (chart) {
+    chart.data.labels = labels;
+    chart.data.datasets = datasets;
+    chart.update('none');
+  } else {
+    const ctx = document.getElementById('pnlChart').getContext('2d');
+    chart = new Chart(ctx, {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { labels: { color: '#e5e7eb' } },
+          tooltip: { backgroundColor: '#151a23', borderColor: '#222a36', borderWidth: 1 }
+        },
+        scales: {
+          x: { title: { display: true, text: 'minutes', color: '#6b7280' },
+               ticks: { color: '#6b7280', maxTicksLimit: 12 },
+               grid: { color: '#222a36' } },
+          y: { title: { display: true, text: 'PnL ($)', color: '#6b7280' },
+               ticks: { color: '#6b7280' },
+               grid: { color: '#222a36' } }
+        }
+      }
+    });
+  }
+}
+</script>
+<script>
+// ----- Trade grouping across variants -----
+// A single logical trade fires into multiple variant strategies simultaneously.
+// We group bets across variants using a fingerprint of what uniquely identifies
+// the trade: (match, player, type, entry_ts bucket).
+// entry_ts is a wall-clock float; we bucket by whole-second to tolerate tiny
+// snapshot drift between strategies processing the same signal list.
+function tradeKey(bet) {
+  const secBucket = bet.entry_ts ? Math.round(bet.entry_ts) : 'null';
+  return [bet.match, bet.player, bet.type, secBucket].join('||');
+}
+
+function groupBets(strategies) {
+  // Walk all bets in all variants, bucket by tradeKey, collect which variants hit.
+  // A grouped row carries the common trade fields plus a Set of variant labels.
+  const groups = new Map();
+  for (const s of strategies) {
+    if (!s.bets) continue;
+    for (const b of s.bets) {
+      const key = tradeKey(b);
+      let g = groups.get(key);
+      if (!g) {
+        g = {
+          key,
+          match: b.match,
+          player: b.player,
+          type: b.type,
+          odds: b.odds,
+          stake: b.stake,
+          entry_ts: b.entry_ts,
+          // Closed fields: any variant will have the same values (same trade)
+          // but SL/TP reason can differ if variants use different exit configs.
+          // Current v7 config: all variants share exit rules, so we take the
+          // first non-null we see. Also track a max-pnl / min-pnl guard in case.
+          exit_odds: b.exit_odds,
+          exit_ts: b.exit_ts,
+          pnl: b.pnl,
+          reason: b.reason,
+          held: b.held,
+          closed: b.closed,
+          variants: new Set([s.label]),
+        };
+        groups.set(key, g);
+      } else {
+        g.variants.add(s.label);
+        // Prefer closed-state info if any variant has it (in case of mid-snapshot race).
+        if (b.closed && !g.closed) {
+          g.closed = true;
+          g.exit_odds = b.exit_odds;
+          g.exit_ts = b.exit_ts;
+          g.pnl = b.pnl;
+          g.reason = b.reason;
+          g.held = b.held;
+        }
+      }
+    }
+  }
+  return Array.from(groups.values());
+}
+
+// ----- Open positions table -----
+function renderOpen(grouped, allLabels) {
+  const body = document.getElementById('openBody');
+  const sub = document.getElementById('openSub');
+  const empty = document.getElementById('openEmpty');
+  const table = document.getElementById('openTable');
+  const open = grouped
+    .filter(g => !g.closed)
+    .sort((a, b) => (b.entry_ts || 0) - (a.entry_ts || 0));
+  sub.textContent = open.length + ' open across variants';
+  if (open.length === 0) {
+    body.innerHTML = '';
+    table.style.display = 'none';
+    empty.style.display = 'block';
+    return;
+  }
+  table.style.display = '';
+  empty.style.display = 'none';
+  body.innerHTML = open.map(g => `
+    <tr>
+      <td>${fmtHeld(g.held)}</td>
+      <td class="match" title="${g.match || ''}">${g.match || '—'}</td>
+      <td>${g.player || '—'}</td>
+      <td>${typePill(g.type)}</td>
+      <td class="num">${fmtOdds(g.odds)}</td>
+      <td class="num">$${(g.stake || 0).toFixed(2)}</td>
+      <td>${variantTags(g.variants, allLabels)}</td>
+    </tr>
+  `).join('');
+}
+</script>
+<script>
+// ----- Recent trades (closed) table -----
+function renderClosed(grouped, allLabels) {
+  const body = document.getElementById('closedBody');
+  const sub = document.getElementById('closedSub');
+  const empty = document.getElementById('closedEmpty');
+  const table = document.getElementById('closedTable');
+  const closed = grouped
+    .filter(g => g.closed)
+    .sort((a, b) => (b.exit_ts || b.entry_ts || 0) - (a.exit_ts || a.entry_ts || 0))
+    .slice(0, 100); // cap render at 100 rows
+  if (closed.length === 0) {
+    body.innerHTML = '';
+    table.style.display = 'none';
+    empty.style.display = 'block';
+    sub.textContent = '—';
+    return;
+  }
+  table.style.display = '';
+  empty.style.display = 'none';
+  // Aggregate summary: total unique trades + breakdown of reasons
+  const reasons = {};
+  closed.forEach(g => {
+    reasons[g.reason] = (reasons[g.reason] || 0) + 1;
+  });
+  const reasonStr = Object.entries(reasons)
+    .map(([r,n]) => `${r}:${n}`).join('  ');
+  sub.textContent = `${closed.length} unique trades  |  ${reasonStr}`;
+
+  body.innerHTML = closed.map(g => `
+    <tr class="${winLossRowClass(g.pnl)}">
+      <td>${fmtClock(g.exit_ts || g.entry_ts)}</td>
+      <td class="match" title="${g.match || ''}">${g.match || '—'}</td>
+      <td>${g.player || '—'}</td>
+      <td>${typePill(g.type)}</td>
+      <td class="num">${fmtOdds(g.odds)}</td>
+      <td class="num">${fmtOdds(g.exit_odds)}</td>
+      <td class="num">${fmtHeld(g.held)}</td>
+      <td class="num pnl-cell">${fmt$(g.pnl)}</td>
+      <td>${reasonPill(g.reason)}</td>
+      <td>${variantTags(g.variants, allLabels)}</td>
+    </tr>
+  `).join('');
+}
+
+// ----- Refresh loop -----
+async function refresh() {
+  try {
+    const res = await fetch('/api');
+    const data = await res.json();
+    renderCards(data);
+    renderChart(data);
+    const allLabels = data.strategies.map(s => s.label);
+    const grouped = groupBets(data.strategies);
+    renderOpen(grouped, allLabels);
+    renderClosed(grouped, allLabels);
+  } catch (e) {
+    document.getElementById('meta').textContent = 'connection error: ' + (e.message || e);
+    console.error(e);
+  }
+}
+
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>

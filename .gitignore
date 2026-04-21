@@ -1,0 +1,134 @@
+# ---------------------------------------------------------------
+# krypt-agent tennis — gitignore
+# ---------------------------------------------------------------
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env.local
+
+# Secrets
+.env
+*.key
+*_secret*
+*_credentials*
+
+# Logs (runtime output — Railway volume handles these, not git)
+*.log
+*.log.*
+
+# Backup files (kept locally, not shipped)
+*.bak
+*.bak_*
+*.pre_*.bak
+
+# Analysis scratch files (ad-hoc investigations, not production code)
+_*.py
+_*.ps1
+_*.csv
+_*.txt
+_placeholder.txt
+# NOTE: _elo_snapshot.json is production data — explicitly un-ignored below
+_*.json
+!_elo_snapshot.json
+
+# Old runner versions (kept on laptop for reference only)
+tennis_multi_v6.py
+tennis_multi_v7.py
+tennis_multi_v8.py
+tennis_multi_fork.py
+tennis_multi.py
+tennis_multi.py.*
+
+# Old detector/strategy backups
+tennis_*.bak*
+
+# Crypto-side files (different project, wrong codebase)
+bnc_*
+bounce_*
+momentum_*
+spread_*
+ws_*
+crypto_*
+live_*
+exchange.py
+strategy_engine.py
+strategy_store.py
+market_intel.py
+order_manager.py
+risk_manager.py
+pair_finder.py
+pair_scanner.py
+pair_list.py
+perp_*
+ccxt*
+main.py
+config.py
+deep_scan.py
+alerts.py
+notifier.py
+elo_builder.py
+bounce_detector.py
+dashboard_api.py
+dashboard.html
+dash_probe.json
+run_*.py
+run_*.bat
+setup.bat
+tick_check.py
+parse_overnight.py
+parse_peak.py
+parse30.py
+promotion_pipeline.py
+watchdog.py
+watchdog.log
+
+# Data dumps (regeneratable, too large for git)
+sackmann_data/
+atp_*.csv
+wta_*.csv
+*_trades*.csv
+*_overnight*.log
+tournament*.json
+tournament*.log
+tournament*.py
+krypt_agent.*
+apitennis_*.json
+
+# PID / temp runtime files
+*.pid
+*.tmp
+
+# Old-codebase artifacts that slipped into this directory
+mom_stderr*.txt
+mom_stdout*.txt
+sofa_live.json
+launch_tennis_parallel.ps1
+tennis_dashboard.html
+tennis_multipoll.html
+tournament_dashboard.html
+multi_test.py
+tennis_test.py
+tennis_prior.py
+# The literal filename `{b['exit_odds']` — accidental zero-byte file from
+# a shell interpolation error
+{b*
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
