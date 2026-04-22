@@ -914,8 +914,10 @@ class TennisStrategy:
         else:
             self.losing_trades += 1
 
-        # Re-entry protection: remember stop-loss exits by (match, direction)
-        if reason == "stop_loss":
+        # Re-entry protection: remember loss exits by (match, direction).
+        # Includes hard_cap so cap-equipped variants don't re-enter losing
+        # matches that V6 (which stops out via odds-move SL) would block.
+        if reason in ("stop_loss", "hard_cap"):
             direction = _SWING_DIRECTION[bet.swing_type]
             self._recent_sl[(bet.match_id, direction)] = bet.exit_time
 

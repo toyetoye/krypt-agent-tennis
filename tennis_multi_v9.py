@@ -1,4 +1,4 @@
-"""KRYPT-AGENT - Tennis Multi Runner v9 (7-variant loss-cap experiment)
+"""KRYPT-AGENT - Tennis Multi Runner v9 (9-variant loss-cap + fav-only experiment)
 
 Default port 8888.
 
@@ -6,11 +6,20 @@ Trimmed down from v8's 11 variants. Removed V1/V2 (dominated by V3),
 V4/V5 (doubles question resolved), V9 (marginal gain over V6), V11
 (too-stacked — we want isolated effects, not kitchen sink).
 
-Added V12/V13 (hard_cap variations) based on madrid hardcap-leak analysis:
-  - V6 baseline simulates to +$57 / 809 trades.
+Added V12/V13 (hard_cap variations) and V14/V15 (fav-only variations)
+based on madrid hardcap-leak + fav-side analysis:
+  - V6 baseline simulates to +$57 / 809 trades (+$0.070/trade).
   - V6 + cap=$0.50 simulates (realistic) to +$203 / 809 trades (3.6x).
   - V6 + cap=$0.35 simulates to +$292 / 809 trades (~max loss $0.50 live).
+  - V6 + FAV-only (entry<2.00) simulates +$0.104/trade on 305 trades.
+  - V6 + FAV-only + cap=$0.50 simulates to +$48 / 305 trades (+$0.157/trade).
   - Hard-caps account for -$422 on v5-madrid. Largest single leak.
+
+Code fix (this revision):
+  - hard_cap exits now trigger re-entry cooldown (same as stop_loss).
+    Without this, V12/V13 took 2 extra trades per 7-trade V6 baseline
+    because they didn't honor _recent_sl, partially explaining extra
+    losses seen on Railway's 1st run.
 
 Variants in this run:
   V3  = skip_lay + skip Challenger + skip odds [1.60, 1.80)       — state-filter-null control
@@ -20,6 +29,13 @@ Variants in this run:
   V10 = V6 but ATP/WTA-only (block ITF too)                       — tier concentration
   V12 = V6 + hard_cap=$0.50                                       — user-requested loss cap
   V13 = V6 + hard_cap=$0.35                                       — strict (~max_loss ~$0.50 live)
+  V14 = V6 + FAV-only (entry<2.00) + cap=$0.50                    — simple "back the fav"
+  V15 = V6 + STRONG-FAV-only + cap=$0.50                          — [1.40,1.80)u[1.90,2.00); skips [1.80,1.90) loser sub-band
+
+V14/V15 both use cap=$0.50 because backtests showed fav-side edge is
+strongest WITH the cap on top. V15 adds 2 extra skip bands to test whether
+[1.80,1.90) is truly a loser sub-band (n=27, -$0.106/trade in madrid —
+small sample, could be noise).
 
 Key comparisons this run answers:
   - V6 vs V3 : does the state filter work? (live only; not simulable on CSV)
@@ -29,6 +45,8 @@ Key comparisons this run answers:
   - V12 vs V6: does tighter cap deliver simulated 3.6x?
   - V13 vs V12: does going stricter add edge or eat into winners?
   - V13 vs V8 : which lever is stronger — cap or cooldown?
+  - V14 vs V12: does the fav-only filter add edge over V12?
+  - V15 vs V14: is [1.80,1.90) really a loser, or was the madrid n=27 noise?
 
 Kill-switch: --max-session-loss only. $25/variant protects each independently.
 """
@@ -272,6 +290,35 @@ def main():
                 "skip_odds_bands": ((1.60, 1.80),),
                 "blocked_entry_states": NEG_STATES,
                 "hard_cap_dollars": 0.35,
+            },
+        },
+        {
+            "label": "V14",
+            "desc": "V6 + FAV-only (entry<2.00) + cap=$0.50",
+            "kwargs": {
+                "skip_lay_signals": True,
+                "blocked_event_types": frozenset({"challenger"}),
+                # Skip [1.60,1.80) AND everything 2.00+. Leaves:
+                # [1.20,1.60) and [1.80,2.00) — i.e. current-odds favs only.
+                "skip_odds_bands": ((1.60, 1.80), (2.00, 99.0)),
+                "blocked_entry_states": NEG_STATES,
+                "hard_cap_dollars": 0.50,
+            },
+        },
+        {
+            "label": "V15",
+            "desc": "V6 + STRONG-FAV-only + cap=$0.50",
+            "kwargs": {
+                "skip_lay_signals": True,
+                "blocked_event_types": frozenset({"challenger"}),
+                # Fav bands with the 2 softest sub-bands dropped. Leaves:
+                # [1.40,1.60) and [1.90,2.00). Drops [1.20,1.40) (mediocre,
+                # +$0.059/trade) and [1.80,1.90) (negative, -$0.106/trade
+                # but small n=27 — this variant tests whether that was noise).
+                "skip_odds_bands": ((1.20, 1.40), (1.60, 1.80), (1.80, 1.90),
+                                    (2.00, 99.0)),
+                "blocked_entry_states": NEG_STATES,
+                "hard_cap_dollars": 0.50,
             },
         },
     ]

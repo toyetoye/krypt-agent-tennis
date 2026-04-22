@@ -1,3 +1,24 @@
+# krypt-agent tennis — session handoff
+
+---
+
+## ⚡ CURRENT STATE (Apr 22, 2026 — latest)
+
+**Running:**
+- Laptop v9: PID 100492, port 8888, running tennis_multi_v9.py (7 variants). 233 min elapsed at ~02:05 local.
+- Railway: https://krypt-agent-tennis-production.up.railway.app/ (7 variants, 27 min elapsed at ~02:05 local).
+- Both run the same `tennis_multi_v9.py` but the Railway one will deploy any push to GitHub main branch within ~60s.
+
+**Just changed, not yet deployed:**
+- `tennis_strategy.py` line ~920: re-entry cooldown now triggers on hard_cap exits too (was only stop_loss).
+- `tennis_multi_v9.py`: added V14 (V6 + fav-only entry<2.00 + cap=$0.50) and V15 (V6 + strong-fav only + cap=$0.50, skipping [1.20,1.40) and [1.80,1.90) sub-bands to test whether madrid's n=27 "loser band" was noise).
+
+**Next action:** commit + push + restart laptop → both run 9 variants.
+
+**Repo:** https://github.com/toyetoye/krypt-agent-tennis (private)
+
+---
+
 # krypt-agent tennis — session handoff (Apr 21, 2026, ~21:02 local)
 
 **Purpose:** Resume work in a fresh chat without losing context. All critical
