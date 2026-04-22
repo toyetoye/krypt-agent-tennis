@@ -21,6 +21,14 @@ Code fix (this revision):
     because they didn't honor _recent_sl, partially explaining extra
     losses seen on Railway's 1st run.
 
+Per-variant stake override (Tier A staking):
+  Each variant spec can include an optional "stake": <float> key. When set,
+  that variant uses that stake instead of the --stake CLI default. Left
+  unset everywhere for now (all variants at CLI default). Enables bumping
+  proven-winner variants with a one-line config change. Note: hard_cap_dollars
+  is absolute $, not a % of stake — if you raise a variant's stake, consider
+  scaling its hard_cap proportionally to preserve the cap-as-% behaviour.
+
 Variants in this run:
   V3  = skip_lay + skip Challenger + skip odds [1.60, 1.80)       — state-filter-null control
   V6  = V3 + skip 5 neg states (full v7 stack)                    — anchor / current best
@@ -111,6 +119,8 @@ class DashHandler(BaseHTTPRequestHandler):
             strategies_data.append({
                 "label": label,
                 "desc": desc,
+                "stake_amount": strat.cfg.stake_amount,
+                "hard_cap_dollars": strat.cfg.hard_cap_dollars,
                 "total_pnl": round(st.get("total_pnl", 0.0), 4),
                 "trades": st.get("total_trades", 0),
                 "winning": st.get("winning", 0),
@@ -328,8 +338,14 @@ def main():
         cfg_kwargs = dict(spec["kwargs"])
         if args.hard_cap is not None:
             cfg_kwargs.setdefault("hard_cap_dollars", args.hard_cap)
+        # Optional per-variant stake override. Default: CLI --stake value.
+        # Tier A infrastructure: lets us bump a winning variant (e.g. V14=$15)
+        # with one config line without touching anything else. Hard_cap is
+        # still absolute dollars — if you scale stake, consider scaling cap
+        # too to keep cap/stake ratio constant (e.g. stake $20 + cap $1.00).
+        variant_stake = spec.get("stake", args.stake)
         cfg = TennisConfig(
-            stake_amount=args.stake,
+            stake_amount=variant_stake,
             max_open_bets=100,
             **cfg_kwargs,
         )
@@ -337,8 +353,11 @@ def main():
         strat._label = spec["label"]
         strat._kill_override = spec.get("kill_override", None)
         strategies.append((spec["label"], spec["desc"], strat))
-        logger.info(f"Variant {spec['label']}: {spec['desc']} "
-                    f"(kill-switch: ${strat._kill_override or args.max_session_loss or 'off'})")
+        stake_note = (f" stake=${variant_stake:.2f}"
+                      if variant_stake != args.stake else "")
+        logger.info(f"Variant {spec['label']}: {spec['desc']}"
+                    f" (kill-switch: ${strat._kill_override or args.max_session_loss or 'off'}"
+                    f"{stake_note})")
 
     import threading
     _shared["start_ts"] = time.time()

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tennis Multi-Strat v7</title>
+<title>Tennis Multi-Strat v9</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
   :root {
@@ -198,8 +198,8 @@
 </head>
 <body>
   <div class="header">
-    <h1><span class="pulse"></span>Tennis Multi-Strat v7
-      <span style="color:var(--muted);font-weight:400;font-size:13px">7 variants · filter-stack experiment</span>
+    <h1><span class="pulse"></span>Tennis Multi-Strat v9
+      <span style="color:var(--muted);font-weight:400;font-size:13px">9 variants · loss-cap + fav-only experiment</span>
     </h1>
     <div class="meta" id="meta">connecting...</div>
   </div>
@@ -368,6 +368,7 @@ function renderCards(data) {
       <div class="row"><span class="label">W / L</span><span class="val">${s.winning} / ${s.losing}</span></div>
       <div class="row"><span class="label">Win rate</span><span class="val">${fmtPct(s.win_rate)}</span></div>
       <div class="row"><span class="label">Open</span><span class="val">${s.open_bets}</span></div>
+      ${(s.stake_amount !== undefined && s.stake_amount !== null) ? `<div class="row"><span class="label">Stake${s.hard_cap_dollars ? ' / cap' : ''}</span><span class="val">$${Number(s.stake_amount).toFixed(0)}${s.hard_cap_dollars ? ' / $' + Number(s.hard_cap_dollars).toFixed(2) : ''}</span></div>` : ''}
       ${s.entries_blocked_tier ? `<div class="row"><span class="label">Blk: tier</span><span class="val">${s.entries_blocked_tier}</span></div>` : ''}
       ${s.entries_blocked_entry_state ? `<div class="row"><span class="label">Blk: state</span><span class="val">${s.entries_blocked_entry_state}</span></div>` : ''}
       ${s.entries_blocked_odds_band ? `<div class="row"><span class="label">Blk: odds</span><span class="val">${s.entries_blocked_odds_band}</span></div>` : ''}
