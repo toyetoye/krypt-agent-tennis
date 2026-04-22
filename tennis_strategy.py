@@ -76,6 +76,13 @@ class TennisBet:
     pnl: float = 0.0
     exit_reason: str = ""
     closed: bool = False
+    # Point-state at entry (measurement fields, added Apr 22).
+    # Captured via TennisFeedAPITennis.get_live_point_state() at _enter().
+    # Stays None when the livescore call failed / wasn't made.
+    entry_game_score: Optional[str] = None            # e.g. "0 - 30"
+    entry_server_is_backed: Optional[bool] = None     # True if backed player is serving
+    entry_pressure_state: Optional[str] = None        # BACKED_HAS_PRESSURE | BACKED_FACING_PRESSURE | NEUTRAL | UNKNOWN
+    entry_pressure_kind: Optional[str] = None         # "break" | "set" | "match" | None
 
     @property
     def age(self) -> float:
@@ -169,6 +176,14 @@ class TennisStrategy:
         self.entries_blocked_tier = 0
         self.entries_blocked_entry_state = 0
         self.entries_blocked_dom_mismatch = 0
+        # Pressure-state counters (added Apr 22)
+        self.entries_blocked_pressure = 0     # skip_when_backed_facing_pressure fired
+        self.entries_blocked_no_pressure = 0  # require_backed_has_pressure fired
+        self.entries_pressure_unknown = 0     # livescore failed; fallback used
+        self.entries_passed_pressure = 0      # passed filter (no veto)
+        # Handoff slot: _can_enter() stashes (match_id, state, kind, detail)
+        # here so _enter() can attach to the bet without refetching.
+        self._pending_pressure = None
         # Counters for new filter
         self.entries_blocked_rank = 0
         self.entries_blocked_elo = 0
@@ -408,6 +423,13 @@ class TennisStrategy:
         # Prior-based filter: reject when fundamentals contradict the fade thesis.
         if not self._check_prior(sig):
             return False
+        # Pressure-state filter (Apr 22): break/set/match point logic.
+        # Also captures state for _enter() to tag on the bet record.
+        allow, p_state, p_kind, p_detail = self._check_pressure(sig)
+        if not allow:
+            return False
+        # Stash so _enter() can consume without refetching.
+        self._pending_pressure = (sig.match_id, p_state, p_kind, p_detail)
         return True
 
     def _enrich_signal(self, sig: TennisSignal) -> Optional[dict]:
@@ -621,6 +643,107 @@ class TennisStrategy:
         self.entries_passed_prior += 1
         return True
 
+    # ------------------------------------------------------------------
+    # Pressure-state classifier (added Apr 22).
+    # See tennis_detector.TennisConfig for config field docs.
+    # ------------------------------------------------------------------
+    def _classify_pressure(self, sig: TennisSignal):
+        """Fetch fresh point-state for this signal's match and classify.
+
+        Returns tuple (state, kind, detail_dict_or_None):
+          state:   one of
+                   - "BACKED_HAS_PRESSURE"    (opponent facing break/set/match)
+                   - "BACKED_FACING_PRESSURE" (backed player facing break/set/match)
+                   - "NEUTRAL"                (no pressure detected in current game)
+                   - "UNKNOWN"                (feed call failed — use fail-mode)
+          kind:    "break" | "set" | "match" | None
+          detail:  raw dict from feed.get_live_point_state(), or None
+        """
+        # Feed must expose get_live_point_state — TennisFeedAPITennis does.
+        getter = getattr(self.feed, "get_live_point_state", None)
+        if getter is None:
+            return ("UNKNOWN", None, None)
+        try:
+            ps = getter(sig.match_id)
+        except Exception as e:
+            logger.debug(f"get_live_point_state failed for {sig.match_id}: {e}")
+            return ("UNKNOWN", None, None)
+        if ps is None:
+            return ("UNKNOWN", None, None)
+
+        # Determine which side ("first" / "second") is the BACKED player.
+        # In our feed convention, first_player = home, second_player = away.
+        # For BACK signals, backed = the player we back.
+        # For LAY signals, backed (in the "who's on our side" sense) is the
+        # one we're NOT laying — i.e. the opposite side.
+        if sig.swing_type == SwingType.BACK_HOME:
+            backed_side = "first"
+        elif sig.swing_type == SwingType.BACK_AWAY:
+            backed_side = "second"
+        elif sig.swing_type == SwingType.LAY_HOME:
+            # Laying home = rooting for away → "backed" in our risk sense = second
+            backed_side = "second"
+        else:  # LAY_AWAY
+            backed_side = "first"
+
+        # Priority: match_point > set_point > break_point
+        # ("higher stakes" wins the classification).
+        for kind, key in (("match", "match_point_for"),
+                          ("set", "set_point_for"),
+                          ("break", "break_point_for")):
+            side = ps.get(key)
+            if side is None:
+                continue
+            if side == backed_side:
+                return ("BACKED_HAS_PRESSURE", kind, ps)
+            else:
+                return ("BACKED_FACING_PRESSURE", kind, ps)
+        return ("NEUTRAL", None, ps)
+
+    def _check_pressure(self, sig: TennisSignal):
+        """Apply pressure-state filters. Returns (allow, state, kind, detail).
+
+        allow is True if entry may proceed; False means reject.
+        state/kind/detail are returned so _enter() can stash them on the bet.
+        """
+        cfg = self.cfg
+        # Fast path: neither filter enabled → no fetch, no blocking.
+        # (We still return UNKNOWN so measurement is consistent; _enter won't
+        # tag pressure state unless we have data.)
+        if (not cfg.skip_when_backed_facing_pressure
+                and not cfg.require_backed_has_pressure):
+            return (True, None, None, None)
+
+        state, kind, detail = self._classify_pressure(sig)
+
+        if state == "UNKNOWN":
+            self.entries_pressure_unknown += 1
+            mode = (cfg.pressure_fail_mode or "neutral").lower()
+            if mode == "open":
+                return (True, state, kind, detail)
+            if mode == "closed":
+                # Tally under whichever filter is active; reject either way.
+                if cfg.require_backed_has_pressure:
+                    self.entries_blocked_no_pressure += 1
+                else:
+                    self.entries_blocked_pressure += 1
+                return (False, state, kind, detail)
+            # mode == "neutral" (default): treat as NEUTRAL and re-enter logic.
+            state = "NEUTRAL"
+
+        # Now apply the filters based on the (known) state.
+        if cfg.skip_when_backed_facing_pressure and state == "BACKED_FACING_PRESSURE":
+            self.entries_blocked_pressure += 1
+            logger.info(
+                f"BLOCK pressure {sig.player} @ {sig.current_odds:.2f}: "
+                f"backed facing {kind}-point ({detail.get('game_score') if detail else '?'})")
+            return (False, state, kind, detail)
+        if cfg.require_backed_has_pressure and state != "BACKED_HAS_PRESSURE":
+            self.entries_blocked_no_pressure += 1
+            return (False, state, kind, detail)
+
+        self.entries_passed_pressure += 1
+        return (True, state, kind, detail)
 
     def _enter(self, sig: TennisSignal):
         self._bet_counter += 1
@@ -643,10 +766,38 @@ class TennisStrategy:
             odds=sig.current_odds,
             stake=stake,
         )
+
+        # If _can_enter() stashed pressure info for this same signal, attach it.
+        # (Only populated on variants with pressure filters enabled. Other
+        # variants leave these fields as None.)
+        pp = self._pending_pressure
+        if pp is not None and pp[0] == sig.match_id:
+            _, p_state, p_kind, p_detail = pp
+            bet.entry_pressure_state = p_state
+            bet.entry_pressure_kind = p_kind
+            if p_detail:
+                bet.entry_game_score = p_detail.get("game_score")
+                srv = p_detail.get("server")
+                if srv in ("first", "second"):
+                    # Determine if backed player is serving.
+                    if sig.swing_type == SwingType.BACK_HOME:
+                        bet.entry_server_is_backed = (srv == "first")
+                    elif sig.swing_type == SwingType.BACK_AWAY:
+                        bet.entry_server_is_backed = (srv == "second")
+                    elif sig.swing_type == SwingType.LAY_HOME:
+                        bet.entry_server_is_backed = (srv == "second")
+                    else:  # LAY_AWAY
+                        bet.entry_server_is_backed = (srv == "first")
+        # Clear the slot so we never reuse stale data accidentally.
+        self._pending_pressure = None
+
         self._bets[bid] = bet
+        pressure_tag = (f" | press={bet.entry_pressure_state}"
+                        f"({bet.entry_pressure_kind})"
+                        if bet.entry_pressure_state else "")
         logger.info(f"ENTER {bid} {bet_type.upper()} {sig.player} "
                     f"@ {sig.current_odds:.2f} | ${bet.stake:.2f} (conf={sig.confidence:.2f}) | "
-                    f"{sig.match_label} | move={sig.odds_move_pct:+.1f}%")
+                    f"{sig.match_label} | move={sig.odds_move_pct:+.1f}%{pressure_tag}")
         # Record entry time for match cooldown tracking
         if self.cfg.max_trades_per_match_window is not None:
             dq = self._match_trade_times.get(sig.match_id)
@@ -967,6 +1118,11 @@ class TennisStrategy:
             "entries_blocked_tier": self.entries_blocked_tier,
             "entries_blocked_entry_state": self.entries_blocked_entry_state,
             "entries_blocked_dom_mismatch": self.entries_blocked_dom_mismatch,
+            # Pressure-state filter telemetry (added Apr 22)
+            "entries_blocked_pressure": self.entries_blocked_pressure,
+            "entries_blocked_no_pressure": self.entries_blocked_no_pressure,
+            "entries_pressure_unknown": self.entries_pressure_unknown,
+            "entries_passed_pressure": self.entries_passed_pressure,
             "dom_entries": self.dom_entries,
             "dom_blocked_no_pattern": self.dom_blocked_no_pattern,
             "dom_blocked_odds": self.dom_blocked_odds,
@@ -988,5 +1144,11 @@ class TennisStrategy:
                 "pnl": b.pnl if b.closed else None,
                 "reason": b.exit_reason if b.closed else "open",
                 "held": round(b.age, 0), "closed": b.closed,
+                # Pressure measurement fields (None for variants that
+                # didn't invoke the pressure filter).
+                "entry_pressure_state": b.entry_pressure_state,
+                "entry_pressure_kind": b.entry_pressure_kind,
+                "entry_game_score": b.entry_game_score,
+                "entry_server_is_backed": b.entry_server_is_backed,
             })
         return bets[:50]

@@ -398,6 +398,93 @@ class TennisFeedAPITennis:
         with self._lock:
             return dict(self._event_meta.get(str(match_id), {}))
 
+    def get_live_point_state(self, match_id):
+        """Fetch FRESH point-level state for a specific live match.
+
+        Unlike get_match_meta (which returns cached set-level scores), this
+        hits api-tennis get_livescore?match_key=<id> live, parsing:
+          - current game score (e.g. "0 - 30")
+          - which player is serving ("First Player" / "Second Player")
+          - active break_point / set_point / match_point flags from the
+            most recent point in pointbypoint
+
+        Returns dict with keys, or None on failure:
+          match_id: str
+          game_score: str            e.g. "0 - 30"
+          server: str                "first" | "second" | "unknown"
+          break_point_for: str       "first" | "second" | None
+          set_point_for: str         "first" | "second" | None
+          match_point_for: str       "first" | "second" | None
+          fetched_ts: float          wall-clock timestamp
+
+        Cost: 1 api-tennis call per invocation. Should be used sparingly
+        (e.g. only when we're about to place a trade).
+        """
+        data = self._call("get_livescore", match_key=str(match_id))
+        if data is None:
+            return None
+        result = data.get("result") or []
+        if not isinstance(result, list) or not result:
+            return None
+        m = result[0]
+        if not isinstance(m, dict):
+            return None
+
+        # Who's serving
+        srv_raw = (m.get("event_serve") or "").strip().lower()
+        if "first" in srv_raw:
+            server = "first"
+        elif "second" in srv_raw:
+            server = "second"
+        else:
+            server = "unknown"
+
+        # Current game score (e.g. "0 - 30")
+        game_score = (m.get("event_game_result") or "").strip()
+
+        # Walk pointbypoint to find the LATEST point and its pressure flags.
+        # api-tennis seems to list games in chronological order; the last
+        # point in the last game is "current".
+        break_point_for = None
+        set_point_for = None
+        match_point_for = None
+        pbp = m.get("pointbypoint") or []
+        if isinstance(pbp, list) and pbp:
+            last_game = pbp[-1]
+            if isinstance(last_game, dict):
+                points = last_game.get("points") or []
+                if isinstance(points, list) and points:
+                    last_point = points[-1]
+                    if isinstance(last_point, dict):
+                        bp = last_point.get("break_point")
+                        sp = last_point.get("set_point")
+                        mp = last_point.get("match_point")
+                        # api-tennis marks as "First Play" / "Second Play"
+                        # meaning "first/second player HAS the break point",
+                        # i.e. the non-serving player is about to break.
+                        def _side(v):
+                            if not v:
+                                return None
+                            s = str(v).strip().lower()
+                            if "first" in s:
+                                return "first"
+                            if "second" in s:
+                                return "second"
+                            return None
+                        break_point_for = _side(bp)
+                        set_point_for = _side(sp)
+                        match_point_for = _side(mp)
+
+        return {
+            "match_id": str(match_id),
+            "game_score": game_score,
+            "server": server,
+            "break_point_for": break_point_for,
+            "set_point_for": set_point_for,
+            "match_point_for": match_point_for,
+            "fetched_ts": time.time(),
+        }
+
     def get_stats(self):
         with self._lock:
             live = [m for m in self._matches.values() if m.is_live]

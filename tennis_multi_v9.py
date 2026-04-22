@@ -43,6 +43,8 @@ Variants in this run:
   V17 = V15 but ATP/WTA-only                                      — strong-fav, main tour
   V18 = V14 but Chall/ITF-only (no ATP/WTA)                       — fav-only, lower tour
   V19 = V15 but Chall/ITF-only (no ATP/WTA)                       — strong-fav, lower tour
+  V20 = V6 + skip_when_backed_facing_pressure                     — block entries when backed faces break/set/match point
+  V21 = V6 + require_backed_has_pressure                          — only enter when OPPONENT faces break/set/match point (very low volume)
 
 V14/V15 both use cap=$0.50 because backtests showed fav-side edge is
 strongest WITH the cap on top. V15 adds 2 extra skip bands to test whether
@@ -64,6 +66,9 @@ Key comparisons this run answers:
   - V16 vs V18: which tier hosts the fav-side edge — main tour or lower tour?
   - V17 vs V19: same question for strong-fav
   - V10 vs V16: on main tour, is dog-side or fav-side the better direction?
+  - V20 vs V6 : does blocking break/set/match-point entries reduce cap overshoot?
+  - V21 vs V6 : does requiring opponent-pressure isolate a high-edge subset?
+  - V21 vs V20: two sides of same coin — which of skip/require is stronger signal?
 
 Kill-switch: --max-session-loss only. $25/variant protects each independently.
 """
@@ -400,6 +405,39 @@ def main():
                                     (2.00, 99.0)),
                 "blocked_entry_states": NEG_STATES,
                 "hard_cap_dollars": 0.50,
+            },
+        },
+        # ------------------------------------------------------------------
+        # PRESSURE FILTERS (Apr 22, user-suggested).
+        # Hypothesis: entering a trade while backed player faces break/set/
+        # match-point is a high-overshoot moment. Mirror: entering when the
+        # OPPONENT faces pressure is a higher-conviction moment.
+        # See tennis_strategy._classify_pressure for logic details.
+        # Uses 1 extra api-tennis call per potential entry when enabled
+        # (negligible cost at current trade volumes).
+        # ------------------------------------------------------------------
+        {
+            "label": "V20",
+            "desc": "V6 + skip if backed is facing pressure",
+            "kwargs": {
+                "skip_lay_signals": True,
+                "blocked_event_types": frozenset({"challenger"}),
+                "skip_odds_bands": ((1.60, 1.80),),
+                "blocked_entry_states": NEG_STATES,
+                "skip_when_backed_facing_pressure": True,
+                # Leave hard_cap unset here to align with V6 baseline.
+            },
+        },
+        {
+            "label": "V21",
+            "desc": "V6 + require opponent is facing pressure",
+            "kwargs": {
+                "skip_lay_signals": True,
+                "blocked_event_types": frozenset({"challenger"}),
+                "skip_odds_bands": ((1.60, 1.80),),
+                "blocked_entry_states": NEG_STATES,
+                "require_backed_has_pressure": True,
+                # Ultra-selective: will have very low trade volume.
             },
         },
     ]

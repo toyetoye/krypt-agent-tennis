@@ -174,6 +174,29 @@ class TennisConfig:
     # doubles matches into the strategy.
     block_doubles: bool = True
 
+    # --- Point-state / pressure filters (added Apr 22) ---
+    # "Pressure" = current game has break_point, set_point, or match_point
+    # flagged (from api-tennis livescore pointbypoint).
+    # Hypothesis: entering a trade while the backed player is facing pressure
+    # is a high-overshoot moment (next point swings odds hard). Mirror: when
+    # the OPPONENT is facing pressure, it's a high-conviction entry moment.
+    #
+    # skip_when_backed_facing_pressure: if True, REJECT entry when backed
+    #                                   player is facing pressure (server is
+    #                                   defending break-/set-/match-point).
+    # require_backed_has_pressure:      if True, REJECT entry UNLESS the
+    #                                   opponent is facing pressure.
+    # pressure_fail_mode:               how to handle livescore fetch failures.
+    #                                   'neutral' (default) = treat as "no
+    #                                   pressure detected" → require-variants
+    #                                   reject, skip-variants allow. Preserves
+    #                                   variant character in degraded case.
+    #                                   'open'   = allow entry on failure.
+    #                                   'closed' = reject entry on failure.
+    skip_when_backed_facing_pressure: bool = False
+    require_backed_has_pressure: bool = False
+    pressure_fail_mode: str = "neutral"
+
     # --- Dominance (bagel/bread) pattern filter ---
     # 'off'      = no dominance logic (classic momentum only)
     # 'required' = momentum signal must also match a dominance pattern
