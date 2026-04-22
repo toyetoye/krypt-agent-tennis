@@ -149,6 +149,11 @@ class DashHandler(BaseHTTPRequestHandler):
                 "entries_blocked_doubles": st.get("entries_blocked_doubles", 0),
                 "entries_blocked_lay": st.get("entries_blocked_lay", 0),
                 "entries_blocked_loss_streak": st.get("entries_blocked_loss_streak", 0),
+                # Pressure-state filter telemetry (V20/V21)
+                "entries_passed_pressure": st.get("entries_passed_pressure", 0),
+                "entries_blocked_pressure": st.get("entries_blocked_pressure", 0),
+                "entries_blocked_no_pressure": st.get("entries_blocked_no_pressure", 0),
+                "entries_pressure_unknown": st.get("entries_pressure_unknown", 0),
                 "rank_elo_enabled": st.get("rank_elo_enabled", False),
                 "bets": enriched_bets,
             })
