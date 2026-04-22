@@ -39,6 +39,10 @@ Variants in this run:
   V13 = V6 + hard_cap=$0.35                                       — strict (~max_loss ~$0.50 live)
   V14 = V6 + FAV-only (entry<2.00) + cap=$0.50                    — simple "back the fav"
   V15 = V6 + STRONG-FAV-only + cap=$0.50                          — [1.40,1.80)u[1.90,2.00); skips [1.80,1.90) loser sub-band
+  V16 = V14 but ATP/WTA-only                                      — fav-only, main tour
+  V17 = V15 but ATP/WTA-only                                      — strong-fav, main tour
+  V18 = V14 but Chall/ITF-only (no ATP/WTA)                       — fav-only, lower tour
+  V19 = V15 but Chall/ITF-only (no ATP/WTA)                       — strong-fav, lower tour
 
 V14/V15 both use cap=$0.50 because backtests showed fav-side edge is
 strongest WITH the cap on top. V15 adds 2 extra skip bands to test whether
@@ -55,6 +59,11 @@ Key comparisons this run answers:
   - V13 vs V8 : which lever is stronger — cap or cooldown?
   - V14 vs V12: does the fav-only filter add edge over V12?
   - V15 vs V14: is [1.80,1.90) really a loser, or was the madrid n=27 noise?
+  - V16 vs V14: is fav-only edge stronger when restricted to main tour?
+  - V18 vs V14: is fav-only edge stronger when restricted to lower tour?
+  - V16 vs V18: which tier hosts the fav-side edge — main tour or lower tour?
+  - V17 vs V19: same question for strong-fav
+  - V10 vs V16: on main tour, is dog-side or fav-side the better direction?
 
 Kill-switch: --max-session-loss only. $25/variant protects each independently.
 """
@@ -325,6 +334,68 @@ def main():
                 # [1.40,1.60) and [1.90,2.00). Drops [1.20,1.40) (mediocre,
                 # +$0.059/trade) and [1.80,1.90) (negative, -$0.106/trade
                 # but small n=27 — this variant tests whether that was noise).
+                "skip_odds_bands": ((1.20, 1.40), (1.60, 1.80), (1.80, 1.90),
+                                    (2.00, 99.0)),
+                "blocked_entry_states": NEG_STATES,
+                "hard_cap_dollars": 0.50,
+            },
+        },
+        # ------------------------------------------------------------------
+        # TIER x ODDS 2x2 MATRIX (Apr 22 — driven by V10's +$0.45/trade edge
+        # on Railway suggesting tier is a stronger axis than odds filter).
+        #
+        # Baseline on Railway: V10 = V6 + ATP/WTA-only, dog-allowed.
+        # These 4 test whether fav-only / strong-fav wins MORE on main tour
+        # (V16/V17) than it does on lower tour (V18/V19), or vice versa.
+        #
+        # Volume estimates (extrapolating from V14/V15/V10 13.75h totals):
+        #   V16: ~140 trades / 13.75h  (fav x ATP/WTA  - slow)
+        #   V17: ~80 trades / 13.75h   (strong-fav x ATP/WTA - very slow)
+        #   V18: ~330 trades / 13.75h  (fav x Chall/ITF - fast)
+        #   V19: ~190 trades / 13.75h  (strong-fav x Chall/ITF - decent)
+        # ------------------------------------------------------------------
+        {
+            "label": "V16",
+            "desc": "V14 but ATP/WTA-only (fav-only on main tour)",
+            "kwargs": {
+                "skip_lay_signals": True,
+                # Block Challenger AND ITF -> ATP/WTA only (same as V10).
+                "blocked_event_types": frozenset({"challenger", "itf"}),
+                "skip_odds_bands": ((1.60, 1.80), (2.00, 99.0)),
+                "blocked_entry_states": NEG_STATES,
+                "hard_cap_dollars": 0.50,
+            },
+        },
+        {
+            "label": "V17",
+            "desc": "V15 but ATP/WTA-only (strong-fav on main tour)",
+            "kwargs": {
+                "skip_lay_signals": True,
+                "blocked_event_types": frozenset({"challenger", "itf"}),
+                "skip_odds_bands": ((1.20, 1.40), (1.60, 1.80), (1.80, 1.90),
+                                    (2.00, 99.0)),
+                "blocked_entry_states": NEG_STATES,
+                "hard_cap_dollars": 0.50,
+            },
+        },
+        {
+            "label": "V18",
+            "desc": "V14 but Chall/ITF-only (fav-only on lower tour)",
+            "kwargs": {
+                "skip_lay_signals": True,
+                # Block ATP and WTA -> Challenger + ITF only.
+                "blocked_event_types": frozenset({"atp", "wta"}),
+                "skip_odds_bands": ((1.60, 1.80), (2.00, 99.0)),
+                "blocked_entry_states": NEG_STATES,
+                "hard_cap_dollars": 0.50,
+            },
+        },
+        {
+            "label": "V19",
+            "desc": "V15 but Chall/ITF-only (strong-fav on lower tour)",
+            "kwargs": {
+                "skip_lay_signals": True,
+                "blocked_event_types": frozenset({"atp", "wta"}),
                 "skip_odds_bands": ((1.20, 1.40), (1.60, 1.80), (1.80, 1.90),
                                     (2.00, 99.0)),
                 "blocked_entry_states": NEG_STATES,
