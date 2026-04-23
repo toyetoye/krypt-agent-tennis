@@ -29,46 +29,40 @@ Per-variant stake override (Tier A staking):
   is absolute $, not a % of stake — if you raise a variant's stake, consider
   scaling its hard_cap proportionally to preserve the cap-as-% behaviour.
 
-Variants in this run:
-  V3  = skip_lay + skip Challenger + skip odds [1.60, 1.80)       — state-filter-null control
-  V6  = V3 + skip 5 neg states (full v7 stack)                    — anchor / current best
-  V7  = V3 duplicate                                              — A/A variance control
-  V8  = V6 + smart-E (3-loss cooldown 30min)                      — consecutive-loss cooldown
-  V10 = V6 but ATP/WTA-only (block ITF too)                       — tier concentration
-  V12 = V6 + hard_cap=$0.50                                       — user-requested loss cap
-  V13 = V6 + hard_cap=$0.35                                       — strict (~max_loss ~$0.50 live)
-  V14 = V6 + FAV-only (entry<2.00) + cap=$0.50                    — simple "back the fav"
-  V15 = V6 + STRONG-FAV-only + cap=$0.50                          — [1.40,1.80)u[1.90,2.00); skips [1.80,1.90) loser sub-band
-  V16 = V14 but ATP/WTA-only                                      — fav-only, main tour
-  V17 = V15 but ATP/WTA-only                                      — strong-fav, main tour
-  V18 = V14 but Chall/ITF-only (no ATP/WTA)                       — fav-only, lower tour
-  V19 = V15 but Chall/ITF-only (no ATP/WTA)                       — strong-fav, lower tour
-  V20 = V6 + skip_when_backed_facing_pressure                     — block entries when backed faces break/set/match point
-  V21 = V6 + require_backed_has_pressure                          — only enter when OPPONENT faces break/set/match point (very low volume)
+Variants in this run (Apr 23 — Railway production set, 9 slots):
+  V3  = skip_lay + skip Challenger + skip odds [1.60, 1.80)       — A/A floor pt 1
+  V7  = V3 duplicate                                              — A/A floor pt 2 (determinism check)
+  V6  = V3 + skip 5 neg states                                    — anchor / baseline
+  V10 = V6 but ATP/WTA-only (block ITF too)                       — 🏆 Railway-confirmed winner (+$0.46/trade over 25h/n=330)
+  V15 = V6 + STRONG-FAV-only + cap=$0.50                          — Railway-confirmed positive (+$0.14/trade over 25h/n=379)
+  V17 = V15 but ATP/WTA-only                                      — tier × odds intersection (promoted from lab, needs prod volume)
+  V19 = V15 but Chall/ITF-only                                    — strong-fav on lower tour (marginal at +$0.11/trade lab n=86)
+  V20 = V6 + skip_when_backed_facing_pressure                     — lab-confirmed +14% over V6 (lab n=213); promoted
+  V22 = V10 + skip_when_backed_facing_pressure                    — NEW MUTANT: stack Railway winner + pressure filter
 
-V14/V15 both use cap=$0.50 because backtests showed fav-side edge is
-strongest WITH the cap on top. V15 adds 2 extra skip bands to test whether
-[1.80,1.90) is truly a loser sub-band (n=27, -$0.106/trade in madrid —
-small sample, could be noise).
+Retired from Railway (Apr 23 — see lab branch for reasoning):
+  V8  — loss-streak 3/30min cooldown: no edge over V6 at n=1170
+  V12 — byte-identical to V6 at n=1365 (cap never fires on V6 tier)
+  V13 — tight cap $0.35 confirmed worse than V12
+  V14 — fav-only all-tiers confirmed flat at n=650
+  V16 — fav-only ATP/WTA: moved to lab for more data
+  V18 — fav-only Chall/ITF: killed (n=650 Railway, +$0.03)
+  V21 — require-opp-pressure: mirror hypothesis dead (n=33 lab, -$0.47)
 
-Key comparisons this run answers:
-  - V6 vs V3 : does the state filter work? (live only; not simulable on CSV)
-  - V3 vs V7 : A/A variance floor — minimum dollar gap considered "signal"
-  - V8 vs V6 : does consecutive-loss cooldown pay off?
-  - V10 vs V6: is ITF worth blocking?
-  - V12 vs V6: does tighter cap deliver simulated 3.6x?
-  - V13 vs V12: does going stricter add edge or eat into winners?
-  - V13 vs V8 : which lever is stronger — cap or cooldown?
-  - V14 vs V12: does the fav-only filter add edge over V12?
-  - V15 vs V14: is [1.80,1.90) really a loser, or was the madrid n=27 noise?
-  - V16 vs V14: is fav-only edge stronger when restricted to main tour?
-  - V18 vs V14: is fav-only edge stronger when restricted to lower tour?
-  - V16 vs V18: which tier hosts the fav-side edge — main tour or lower tour?
-  - V17 vs V19: same question for strong-fav
-  - V10 vs V16: on main tour, is dog-side or fav-side the better direction?
-  - V20 vs V6 : does blocking break/set/match-point entries reduce cap overshoot?
-  - V21 vs V6 : does requiring opponent-pressure isolate a high-edge subset?
-  - V21 vs V20: two sides of same coin — which of skip/require is stronger signal?
+All experimental / unproven variants stay on lab branch. Railway only
+runs Railway-confirmed strategies plus the 2 candidates (V17 tier×odds
+intersection, V22 V10+pressure mutant) most likely to beat V10.
+
+Key comparisons this Railway run answers:
+  - V20 vs V6  : does pressure-skip improvement (+14%/trade in 10h lab)
+                 hold at production sample sizes?
+  - V17 vs V10 : does strong-fav odds filter on top of ATP/WTA-only add
+                 edge, or does it just cut volume?
+  - V17 vs V15 : does ATP/WTA concentration add edge on top of strong-fav?
+  - V19 vs V15 : does Chall/ITF lower-tour do better than all-tier?
+  - V22 vs V10 : does pressure-skip stack on Railway's best strategy?
+  - V22 vs V20 : does tier concentration stack on pressure-skip?
+  - V3 vs V7   : A/A variance floor — determinism check
 
 Kill-switch: --max-session-loss only. $25/variant protects each independently.
 """
@@ -277,18 +271,6 @@ def main():
             },
         },
         {
-            "label": "V8",
-            "desc": "V6 + smart-E (3-loss cooldown 30min)",
-            "kwargs": {
-                "skip_lay_signals": True,
-                "blocked_event_types": frozenset({"challenger"}),
-                "skip_odds_bands": ((1.60, 1.80),),
-                "blocked_entry_states": NEG_STATES,
-                "max_consecutive_losses_per_match": 3,
-                "consecutive_loss_cooldown_sec": 1800,
-            },
-        },
-        {
             "label": "V10",
             "desc": "V6 but ATP/WTA-only (block ITF too)",
             "kwargs": {
@@ -296,42 +278,6 @@ def main():
                 "blocked_event_types": frozenset({"challenger", "itf"}),
                 "skip_odds_bands": ((1.60, 1.80),),
                 "blocked_entry_states": NEG_STATES,
-            },
-        },
-        {
-            "label": "V12",
-            "desc": "V6 + hard_cap=$0.50 (tighter loss cap)",
-            "kwargs": {
-                "skip_lay_signals": True,
-                "blocked_event_types": frozenset({"challenger"}),
-                "skip_odds_bands": ((1.60, 1.80),),
-                "blocked_entry_states": NEG_STATES,
-                # Overrides the CLI --hard-cap for this variant only.
-                "hard_cap_dollars": 0.50,
-            },
-        },
-        {
-            "label": "V13",
-            "desc": "V6 + hard_cap=$0.35 (strict; target ~$0.50 max live)",
-            "kwargs": {
-                "skip_lay_signals": True,
-                "blocked_event_types": frozenset({"challenger"}),
-                "skip_odds_bands": ((1.60, 1.80),),
-                "blocked_entry_states": NEG_STATES,
-                "hard_cap_dollars": 0.35,
-            },
-        },
-        {
-            "label": "V14",
-            "desc": "V6 + FAV-only (entry<2.00) + cap=$0.50",
-            "kwargs": {
-                "skip_lay_signals": True,
-                "blocked_event_types": frozenset({"challenger"}),
-                # Skip [1.60,1.80) AND everything 2.00+. Leaves:
-                # [1.20,1.60) and [1.80,2.00) — i.e. current-odds favs only.
-                "skip_odds_bands": ((1.60, 1.80), (2.00, 99.0)),
-                "blocked_entry_states": NEG_STATES,
-                "hard_cap_dollars": 0.50,
             },
         },
         {
@@ -365,18 +311,6 @@ def main():
         #   V19: ~190 trades / 13.75h  (strong-fav x Chall/ITF - decent)
         # ------------------------------------------------------------------
         {
-            "label": "V16",
-            "desc": "V14 but ATP/WTA-only (fav-only on main tour)",
-            "kwargs": {
-                "skip_lay_signals": True,
-                # Block Challenger AND ITF -> ATP/WTA only (same as V10).
-                "blocked_event_types": frozenset({"challenger", "itf"}),
-                "skip_odds_bands": ((1.60, 1.80), (2.00, 99.0)),
-                "blocked_entry_states": NEG_STATES,
-                "hard_cap_dollars": 0.50,
-            },
-        },
-        {
             "label": "V17",
             "desc": "V15 but ATP/WTA-only (strong-fav on main tour)",
             "kwargs": {
@@ -384,18 +318,6 @@ def main():
                 "blocked_event_types": frozenset({"challenger", "itf"}),
                 "skip_odds_bands": ((1.20, 1.40), (1.60, 1.80), (1.80, 1.90),
                                     (2.00, 99.0)),
-                "blocked_entry_states": NEG_STATES,
-                "hard_cap_dollars": 0.50,
-            },
-        },
-        {
-            "label": "V18",
-            "desc": "V14 but Chall/ITF-only (fav-only on lower tour)",
-            "kwargs": {
-                "skip_lay_signals": True,
-                # Block ATP and WTA -> Challenger + ITF only.
-                "blocked_event_types": frozenset({"atp", "wta"}),
-                "skip_odds_bands": ((1.60, 1.80), (2.00, 99.0)),
                 "blocked_entry_states": NEG_STATES,
                 "hard_cap_dollars": 0.50,
             },
@@ -434,15 +356,16 @@ def main():
             },
         },
         {
-            "label": "V21",
-            "desc": "V6 + require opponent is facing pressure",
+            "label": "V22",
+            "desc": "V10 (ATP/WTA) + pressure-skip — stack Railway winner + pressure filter",
             "kwargs": {
                 "skip_lay_signals": True,
-                "blocked_event_types": frozenset({"challenger"}),
+                # V10's tier filter: block Challenger AND ITF -> ATP/WTA only
+                "blocked_event_types": frozenset({"challenger", "itf"}),
                 "skip_odds_bands": ((1.60, 1.80),),
                 "blocked_entry_states": NEG_STATES,
-                "require_backed_has_pressure": True,
-                # Ultra-selective: will have very low trade volume.
+                # V20's pressure-skip
+                "skip_when_backed_facing_pressure": True,
             },
         },
     ]
