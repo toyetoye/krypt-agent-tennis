@@ -19,576 +19,498 @@
     --red: #ef4444;
     --amber: #f59e0b;
     --purple: #a78bfa;
+    --cell: 86px;   /* per-variant column width */
+    --rowh: 22px;
   }
   * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
   body {
-    margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     background: var(--bg);
     color: var(--text);
-    padding: 16px;
+    padding: 12px;
+    font-size: 12px;
   }
   .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
-  }
-  .header h1 {
-    font-size: 18px;
-    font-weight: 600;
-    margin: 0;
-  }
-  .meta { font-size: 12px; color: var(--muted); }
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
-    margin-bottom: 16px;
-  }
-  @media (max-width: 1200px) {
-    .grid { grid-template-columns: repeat(3, 1fr); }
-  }
-  @media (max-width: 900px) {
-    .grid { grid-template-columns: repeat(2, 1fr); }
-  }
-  @media (max-width: 500px) {
-    .grid { grid-template-columns: 1fr; }
-  }
-  .card {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 14px;
-  }
-  .card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
     margin-bottom: 10px;
   }
-  .card-title { font-size: 15px; font-weight: 600; }
-  .card-cap {
-    font-size: 10px;
-    color: var(--muted);
-    padding: 2px 6px;
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    max-width: 60%;
-    text-align: right;
-  }
-  .pnl { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
-  .pnl.up { color: var(--green); }
-  .pnl.down { color: var(--red); }
-  .pnl.flat { color: var(--muted); }
-  .row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 12px;
-    padding: 3px 0;
-    border-top: 1px solid var(--border);
-  }
-  .row:first-of-type { border-top: none; }
-  .row .label { color: var(--muted); }
-  .row .val { font-variant-numeric: tabular-nums; }
-</style>
-<style>
-  .chart-card {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 14px;
-    height: 380px;
-    margin-bottom: 16px;
-  }
-  .chart-card-title { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
-  #chartContainer { position: relative; height: 320px; }
+  .header h1 { font-size: 15px; font-weight: 600; margin: 0; }
+  .meta { color: var(--dim); font-size: 11px; }
+  .meta span + span::before { content: " · "; color: var(--muted); }
 
-  .section {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 14px;
-    margin-bottom: 16px;
+  /* Three-zone layout: chart on top, leaderboard middle, grid bottom. */
+  .zone { background: var(--panel); border: 1px solid var(--border);
+          border-radius: 6px; margin-bottom: 10px; padding: 10px; }
+  .zone h2 { font-size: 11px; color: var(--dim); margin: 0 0 6px 0;
+             text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;
+             display: flex; justify-content: space-between; align-items: center; }
+  .zone h2 .controls { display: flex; gap: 6px; }
+  .zone h2 button {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    padding: 3px 8px; font-size: 10px; border-radius: 4px; cursor: pointer;
+    text-transform: uppercase; letter-spacing: 0.3px; font-weight: 500;
   }
-  .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 10px;
+  .zone h2 button.active { border-color: var(--accent); color: var(--accent); }
+  .zone h2 button:hover { background: var(--border); }
+  #chartWrap { position: relative; height: 320px; }
+  /* Leaderboard table */
+  table.lb { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.lb th, table.lb td {
+    padding: 4px 8px; text-align: right; border-bottom: 1px solid var(--border);
   }
-  .section-title { font-size: 14px; font-weight: 600; }
-  .section-sub { font-size: 11px; color: var(--muted); }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
+  table.lb th { color: var(--dim); font-weight: 500; font-size: 10px;
+                text-transform: uppercase; cursor: pointer; user-select: none; }
+  table.lb th:hover { color: var(--text); }
+  table.lb th.sorted { color: var(--accent); }
+  table.lb td:first-child, table.lb th:first-child { text-align: left; }
+  table.lb td.label { font-weight: 600; color: var(--text); font-family: monospace; }
+  table.lb td.pnl-pos { color: var(--green); }
+  table.lb td.pnl-neg { color: var(--red); }
+  table.lb td.dim { color: var(--muted); }
+  table.lb tr:hover { background: var(--panel-2); }
+  table.lb td.desc { text-align: left; color: var(--dim); font-size: 11px;
+                     max-width: 260px; overflow: hidden; text-overflow: ellipsis;
+                     white-space: nowrap; }
+  /* Element-grid (metrics as rows, variants as columns) */
+  .gridwrap { overflow-x: auto; max-width: 100%; }
+  table.eg { border-collapse: collapse; font-size: 11px; font-family: monospace; }
+  table.eg th, table.eg td {
+    padding: 3px 6px; border-bottom: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    min-width: var(--cell); text-align: right; white-space: nowrap;
   }
-  th, td {
-    padding: 6px 8px;
-    text-align: left;
-    border-bottom: 1px solid var(--border);
-    vertical-align: top;
+  table.eg th.rowhead, table.eg td.rowhead {
+    text-align: left; position: sticky; left: 0; background: var(--panel);
+    border-right: 2px solid var(--border); color: var(--dim);
+    min-width: 120px; font-weight: 500;
   }
-  th {
-    color: var(--muted);
-    font-weight: 500;
-    font-size: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    background: var(--panel-2);
-    position: sticky;
-    top: 0;
+  table.eg th.section {
+    background: var(--panel-2); color: var(--purple);
+    text-transform: uppercase; letter-spacing: 0.5px; font-size: 9px;
+    border-bottom: 1px solid var(--border); padding: 5px 6px;
   }
-  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
-  td.match { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  tr.win  td.pnl-cell { color: var(--green); font-weight: 600; }
-  tr.loss td.pnl-cell { color: var(--red); font-weight: 600; }
-  tr.flat td.pnl-cell { color: var(--muted); }
-  .pill {
-    display: inline-block;
-    font-size: 10px;
-    padding: 1px 5px;
-    border-radius: 3px;
-    font-weight: 600;
-    margin-right: 3px;
-    color: #0b0e14;
+  table.eg th.varhead {
+    background: var(--panel-2); color: var(--text); font-weight: 600;
+    font-size: 12px; cursor: pointer; user-select: none;
   }
-  .pill.back { background: #60a5fa; }
-  .pill.lay  { background: #fb923c; }
-  .pill.open { background: var(--amber); color: #0b0e14; }
-  .pill.tp   { background: var(--green); color: #0b0e14; }
-  .pill.sl   { background: var(--red);   color: #fff; }
-  .pill.hc   { background: #b91c1c;      color: #fff; }
-  .pill.mh   { background: var(--muted); color: #0b0e14; }
-  .vtag {
-    display: inline-block;
-    font-size: 10px;
-    padding: 1px 4px;
-    border-radius: 3px;
-    border: 1px solid var(--border);
-    margin-right: 2px;
-    font-weight: 600;
-    background: var(--panel-2);
-  }
-  .scroll-y { max-height: 400px; overflow-y: auto; }
-
-  .pulse {
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    background: var(--green);
-    border-radius: 50%;
-    margin-right: 6px;
-    animation: pulse 2s infinite;
-  }
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
-  }
-  .empty {
-    padding: 24px;
-    text-align: center;
-    color: var(--muted);
-    font-size: 12px;
-    font-style: italic;
-  }
+  table.eg th.varhead.pinned { color: var(--accent); }
+  table.eg td.num { color: var(--text); }
+  table.eg td.pnl-pos { color: var(--green); font-weight: 600; }
+  table.eg td.pnl-neg { color: var(--red); font-weight: 600; }
+  table.eg td.on { color: var(--green); text-align: center; }
+  table.eg td.off { color: var(--muted); text-align: center; }
+  table.eg td.skip { color: var(--amber); font-size: 10px; }
+  table.eg td.dim { color: var(--muted); }
+  /* Live ticker */
+  .ticker { font-family: monospace; font-size: 11px;
+            max-height: 200px; overflow-y: auto; }
+  .ticker .row { padding: 2px 0; border-bottom: 1px solid var(--border);
+                 display: grid; grid-template-columns: 42px 54px 46px 54px 50px 1fr;
+                 gap: 6px; align-items: center; }
+  .ticker .row.closed .pnl-pos { color: var(--green); }
+  .ticker .row.closed .pnl-neg { color: var(--red); }
+  .ticker .row.open { color: var(--amber); }
+  .ticker .row .var { font-weight: 600; color: var(--text); }
+  .ticker .row .match { color: var(--dim); overflow: hidden;
+                        text-overflow: ellipsis; white-space: nowrap; }
+  .collapse-header { cursor: pointer; user-select: none; }
+  .collapse-header::before { content: "▾ "; color: var(--dim); }
+  .collapse-header.collapsed::before { content: "▸ "; }
+  .collapsed-body { display: none; }
 </style>
 </head>
+
 <body>
-  <div class="header">
-    <h1><span class="pulse"></span>Tennis Multi-Strat v9
-      <span style="color:var(--muted);font-weight:400;font-size:13px">9 variants · loss-cap + fav-only experiment</span>
-    </h1>
-    <div class="meta" id="meta">connecting...</div>
+<div class="header">
+  <h1>Tennis Multi-Strat <span id="version" style="color:var(--dim);font-weight:400">v9</span></h1>
+  <div class="meta">
+    <span id="elapsed">loading…</span>
+    <span id="liveMatches"></span>
+    <span id="signals"></span>
+    <span id="pollStats"></span>
+    <span id="lastUpdate" style="color:var(--muted)"></span>
   </div>
+</div>
 
-  <div class="grid" id="cards"></div>
+<!-- ZONE 1: PnL chart with mode toggle -->
+<div class="zone">
+  <h2>
+    <span id="chartTitle">Cumulative PnL</span>
+    <span class="controls">
+      <button id="btnCum" class="active">Cumulative</button>
+      <button id="btnEdge">Rolling edge/trade</button>
+    </span>
+  </h2>
+  <div id="chartWrap"><canvas id="chart"></canvas></div>
+</div>
 
-  <div class="chart-card">
-    <div class="chart-card-title">PnL over time</div>
-    <div id="chartContainer"><canvas id="pnlChart"></canvas></div>
+<!-- ZONE 2: Leaderboard table -->
+<div class="zone">
+  <h2>Leaderboard <span style="color:var(--muted);font-weight:400">(click column to sort · click variant to pin-highlight on chart)</span></h2>
+  <table class="lb" id="lbTable">
+    <thead>
+      <tr>
+        <th data-sort="label">Variant</th>
+        <th data-sort="total_pnl" class="sorted">PnL</th>
+        <th data-sort="trades">n</th>
+        <th data-sort="win_rate">WR%</th>
+        <th data-sort="edge">Edge/tr</th>
+        <th data-sort="open_bets">Open</th>
+        <th data-sort="desc">Description</th>
+      </tr>
+    </thead>
+    <tbody id="lbBody"></tbody>
+  </table>
+</div>
+
+<!-- ZONE 3: Element grid (collapsible) -->
+<div class="zone">
+  <h2 class="collapse-header" id="gridToggle">Config / metrics grid (variants as columns)</h2>
+  <div class="gridwrap" id="gridWrap">
+    <table class="eg" id="gridTable"></table>
   </div>
+</div>
 
-  <div class="section">
-    <div class="section-header">
-      <div class="section-title">Open Positions</div>
-      <div class="section-sub" id="openSub">0 open</div>
-    </div>
-    <div class="scroll-y">
-      <table id="openTable">
-        <thead>
-          <tr>
-            <th>Age</th>
-            <th>Match</th>
-            <th>Player</th>
-            <th>Type</th>
-            <th class="num">Entry</th>
-            <th class="num">Stake</th>
-            <th>Variants</th>
-          </tr>
-        </thead>
-        <tbody id="openBody"></tbody>
-      </table>
-      <div id="openEmpty" class="empty" style="display:none">No open positions</div>
-    </div>
-  </div>
+<!-- ZONE 4: Live ticker (collapsible) -->
+<div class="zone">
+  <h2 class="collapse-header" id="tickerToggle">Live trade ticker (newest first)</h2>
+  <div id="tickerBody" class="ticker"></div>
+</div>
 
-  <div class="section">
-    <div class="section-header">
-      <div class="section-title">Recent Trades</div>
-      <div class="section-sub" id="closedSub">—</div>
-    </div>
-    <div class="scroll-y">
-      <table id="closedTable">
-        <thead>
-          <tr>
-            <th>Time</th>
-            <th>Match</th>
-            <th>Player</th>
-            <th>Type</th>
-            <th class="num">Entry</th>
-            <th class="num">Exit</th>
-            <th class="num">Held</th>
-            <th class="num">PnL</th>
-            <th>Reason</th>
-            <th>Variants</th>
-          </tr>
-        </thead>
-        <tbody id="closedBody"></tbody>
-      </table>
-      <div id="closedEmpty" class="empty" style="display:none">No closed trades yet</div>
-    </div>
-  </div>
 <script>
-// ----- Color palette -----
-const COLORS = {
-  V1:'#60a5fa', V2:'#10b981', V3:'#f59e0b', V4:'#ef4444',
-  V5:'#a78bfa', V6:'#f472b6', V7:'#22d3ee',
-  A:'#60a5fa', B:'#10b981', C:'#f59e0b', D:'#ef4444'
+// ---------- State ----------
+const state = {
+  mode: 'cum',           // 'cum' or 'edge'
+  sortBy: 'total_pnl',   // leaderboard sort column
+  sortDir: 'desc',
+  pinned: new Set(),     // variant labels pinned on chart
+  pollMs: 5000,
+  history: [],           // full history snapshots for edge-calc
+  lastStats: null,       // last full payload
 };
-const FALLBACK_PALETTE = [
-  '#60a5fa','#10b981','#f59e0b','#ef4444','#a78bfa','#f472b6',
-  '#34d399','#fbbf24','#fb923c','#22d3ee','#c084fc','#facc15'
+
+const PALETTE = [
+  '#3b82f6','#10b981','#f59e0b','#ef4444','#a78bfa','#ec4899','#14b8a6',
+  '#eab308','#f97316','#06b6d4','#8b5cf6','#84cc16','#f472b6','#60a5fa',
+  '#34d399','#fb923c','#c084fc','#22d3ee','#fde047','#f87171',
 ];
-function colorFor(label, idx) {
-  return COLORS[label] || FALLBACK_PALETTE[idx % FALLBACK_PALETTE.length];
+function colorFor(label, idx){
+  return PALETTE[idx % PALETTE.length];
 }
 
-// ----- Formatters -----
-function fmt$(v) {
-  if (v === null || v === undefined) return '—';
-  const s = (v >= 0 ? '+$' : '-$') + Math.abs(v).toFixed(2);
-  return s;
-}
-function fmtOdds(v) {
-  if (v === null || v === undefined || v === 0) return '—';
-  return Number(v).toFixed(2);
-}
-function fmtPct(v) {
-  if (v === null || v === undefined) return '—';
-  return (v).toFixed(0) + '%';
-}
-function fmtHeld(secs) {
-  if (secs === null || secs === undefined) return '—';
-  if (secs < 60) return secs + 's';
-  const m = Math.floor(secs / 60);
-  const s = Math.round(secs - m*60);
-  return m + 'm' + (s ? ' ' + s + 's' : '');
-}
-function fmtClock(ts) {
-  if (!ts) return '—';
-  const d = new Date(ts * 1000);
-  const hh = String(d.getHours()).padStart(2,'0');
-  const mm = String(d.getMinutes()).padStart(2,'0');
-  const ss = String(d.getSeconds()).padStart(2,'0');
-  return hh+':'+mm+':'+ss;
-}
-function pnlClass(v) {
-  if (v === null || v === undefined) return 'flat';
-  if (v > 0.01) return 'up';
-  if (v < -0.01) return 'down';
-  return 'flat';
-}
-function winLossRowClass(pnl) {
-  if (pnl === null || pnl === undefined) return 'flat';
-  if (pnl > 0.01) return 'win';
-  if (pnl < -0.01) return 'loss';
-  return 'flat';
-}
-function reasonPill(reason) {
-  const map = {
-    'take_profit': ['tp','TP'],
-    'stop_loss':   ['sl','SL'],
-    'hard_cap':    ['hc','HC'],
-    'max_hold':    ['mh','MH'],
-    'open':        ['open','OPEN'],
-  };
-  const cfg = map[reason] || ['mh', reason || '—'];
-  return '<span class="pill ' + cfg[0] + '">' + cfg[1] + '</span>';
-}
-function typePill(t) {
-  if (t === 'back') return '<span class="pill back">BACK</span>';
-  if (t === 'lay')  return '<span class="pill lay">LAY</span>';
-  return '<span class="pill mh">' + (t || '—').toUpperCase() + '</span>';
-}
-function variantTags(labels, allLabels) {
-  // Show ALL variant labels, coloring only those present.
-  const set = new Set(labels);
-  return allLabels.map((lbl, idx) => {
-    const on = set.has(lbl);
-    const color = colorFor(lbl, idx);
-    const style = on
-      ? ('background:' + color + '22; border-color:' + color + '; color:' + color)
-      : ('color:var(--muted); opacity:0.3');
-    return '<span class="vtag" style="'+style+'">'+lbl+'</span>';
-  }).join('');
-}
-</script>
-<script>
+// ---------- Chart ----------
 let chart = null;
-
-// ----- Variant cards (top grid) -----
-function renderCards(data) {
-  const grid = document.getElementById('cards');
-  grid.innerHTML = '';
-  data.strategies.forEach((s, idx) => {
-    const card = document.createElement('div');
-    card.className = 'card';
-    const c = colorFor(s.label, idx);
-    card.style.borderColor = c;
-    card.innerHTML = `
-      <div class="card-header">
-        <div class="card-title" style="color: ${c}">${s.label}</div>
-        <div class="card-cap" title="${s.desc || ''}">${s.desc || 'control'}</div>
-      </div>
-      <div class="pnl ${pnlClass(s.total_pnl)}">${fmt$(s.total_pnl)}</div>
-      <div class="row"><span class="label">Trades</span><span class="val">${s.trades}</span></div>
-      <div class="row"><span class="label">W / L</span><span class="val">${s.winning} / ${s.losing}</span></div>
-      <div class="row"><span class="label">Win rate</span><span class="val">${fmtPct(s.win_rate)}</span></div>
-      <div class="row"><span class="label">Open</span><span class="val">${s.open_bets}</span></div>
-      ${(s.stake_amount !== undefined && s.stake_amount !== null) ? `<div class="row"><span class="label">Stake${s.hard_cap_dollars ? ' / cap' : ''}</span><span class="val">$${Number(s.stake_amount).toFixed(0)}${s.hard_cap_dollars ? ' / $' + Number(s.hard_cap_dollars).toFixed(2) : ''}</span></div>` : ''}
-      ${s.entries_blocked_tier ? `<div class="row"><span class="label">Blk: tier</span><span class="val">${s.entries_blocked_tier}</span></div>` : ''}
-      ${s.entries_blocked_entry_state ? `<div class="row"><span class="label">Blk: state</span><span class="val">${s.entries_blocked_entry_state}</span></div>` : ''}
-      ${s.entries_blocked_odds_band ? `<div class="row"><span class="label">Blk: odds</span><span class="val">${s.entries_blocked_odds_band}</span></div>` : ''}
-      ${s.entries_blocked_loss_streak ? `<div class="row"><span class="label">Blk: cooldown</span><span class="val">${s.entries_blocked_loss_streak}</span></div>` : ''}
-      ${s.entries_blocked_doubles ? `<div class="row"><span class="label">Blk: doubles</span><span class="val">${s.entries_blocked_doubles}</span></div>` : ''}
-      ${s.entries_blocked_lay ? `<div class="row"><span class="label">Blk: LAY</span><span class="val">${s.entries_blocked_lay}</span></div>` : ''}
-    `;
-    grid.appendChild(card);
-  });
-  const m = document.getElementById('meta');
-  const calls = data.feed?.requests_used_session ?? data.feed?.requests_used ?? 0;
-  const live = data.feed?.live_matches ?? 0;
-  m.textContent = `elapsed ${data.elapsed_min?.toFixed(1) ?? '0.0'}m  |  ${live} live  |  ${calls} API calls`;
-}
-
-// ----- PnL chart -----
-function renderChart(data) {
-  const labels = (data.history || []).map(h => (h.t / 60).toFixed(1));
-  const variantLabels = data.strategies.map(s => s.label);
-  const series = {};
-  for (const lbl of variantLabels) {
-    series[lbl] = (data.history || []).map(h => (h.pnl && h.pnl[lbl] !== undefined) ? h.pnl[lbl] : null);
-  }
-  const datasets = Object.entries(series).map(([label, vals], idx) => {
-    const c = colorFor(label, idx);
-    return {
-      label: label,
-      data: vals,
-      borderColor: c,
-      backgroundColor: c + '22',
-      borderWidth: 2,
-      tension: 0.15,
-      pointRadius: 0,
-    };
-  });
-  if (chart) {
-    chart.data.labels = labels;
-    chart.data.datasets = datasets;
-    chart.update('none');
-  } else {
-    const ctx = document.getElementById('pnlChart').getContext('2d');
-    chart = new Chart(ctx, {
-      type: 'line',
-      data: { labels, datasets },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: { mode: 'index', intersect: false },
-        plugins: {
-          legend: { labels: { color: '#e5e7eb' } },
-          tooltip: { backgroundColor: '#151a23', borderColor: '#222a36', borderWidth: 1 }
-        },
-        scales: {
-          x: { title: { display: true, text: 'minutes', color: '#6b7280' },
-               ticks: { color: '#6b7280', maxTicksLimit: 12 },
-               grid: { color: '#222a36' } },
-          y: { title: { display: true, text: 'PnL ($)', color: '#6b7280' },
-               ticks: { color: '#6b7280' },
-               grid: { color: '#222a36' } }
-        }
-      }
-    });
-  }
-}
-</script>
-<script>
-// ----- Trade grouping across variants -----
-// A single logical trade fires into multiple variant strategies simultaneously.
-// We group bets across variants using a fingerprint of what uniquely identifies
-// the trade: (match, player, type, entry_ts bucket).
-// entry_ts is a wall-clock float; we bucket by whole-second to tolerate tiny
-// snapshot drift between strategies processing the same signal list.
-function tradeKey(bet) {
-  const secBucket = bet.entry_ts ? Math.round(bet.entry_ts) : 'null';
-  return [bet.match, bet.player, bet.type, secBucket].join('||');
-}
-
-function groupBets(strategies) {
-  // Walk all bets in all variants, bucket by tradeKey, collect which variants hit.
-  // A grouped row carries the common trade fields plus a Set of variant labels.
-  const groups = new Map();
-  for (const s of strategies) {
-    if (!s.bets) continue;
-    for (const b of s.bets) {
-      const key = tradeKey(b);
-      let g = groups.get(key);
-      if (!g) {
-        g = {
-          key,
-          match: b.match,
-          player: b.player,
-          type: b.type,
-          odds: b.odds,
-          stake: b.stake,
-          entry_ts: b.entry_ts,
-          // Closed fields: any variant will have the same values (same trade)
-          // but SL/TP reason can differ if variants use different exit configs.
-          // Current v7 config: all variants share exit rules, so we take the
-          // first non-null we see. Also track a max-pnl / min-pnl guard in case.
-          exit_odds: b.exit_odds,
-          exit_ts: b.exit_ts,
-          pnl: b.pnl,
-          reason: b.reason,
-          held: b.held,
-          closed: b.closed,
-          variants: new Set([s.label]),
-        };
-        groups.set(key, g);
-      } else {
-        g.variants.add(s.label);
-        // Prefer closed-state info if any variant has it (in case of mid-snapshot race).
-        if (b.closed && !g.closed) {
-          g.closed = true;
-          g.exit_odds = b.exit_odds;
-          g.exit_ts = b.exit_ts;
-          g.pnl = b.pnl;
-          g.reason = b.reason;
-          g.held = b.held;
-        }
+function initChart(){
+  const ctx = document.getElementById('chart').getContext('2d');
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: { datasets: [] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: false, interaction: { mode: 'nearest', intersect: false },
+      parsing: false,
+      normalized: true,
+      plugins: {
+        legend: { display: true, position: 'bottom', align: 'center',
+                  labels: { color: '#e5e7eb', boxWidth: 10, boxHeight: 10,
+                            padding: 4, font: { size: 10, family: 'monospace' } }},
+        tooltip: { bodyFont: { family: 'monospace' }, titleFont: { family: 'monospace' }}
+      },
+      scales: {
+        x: { type: 'linear', title: { display: true, text: 'elapsed (min)', color: '#9ca3af' },
+             ticks: { color: '#9ca3af' }, grid: { color: 'rgba(255,255,255,0.04)' }},
+        y: { title: { display: true, text: '', color: '#9ca3af' },
+             ticks: { color: '#9ca3af' }, grid: { color: 'rgba(255,255,255,0.06)' }}
       }
     }
-  }
-  return Array.from(groups.values());
-}
-
-// ----- Open positions table -----
-function renderOpen(grouped, allLabels) {
-  const body = document.getElementById('openBody');
-  const sub = document.getElementById('openSub');
-  const empty = document.getElementById('openEmpty');
-  const table = document.getElementById('openTable');
-  const open = grouped
-    .filter(g => !g.closed)
-    .sort((a, b) => (b.entry_ts || 0) - (a.entry_ts || 0));
-  sub.textContent = open.length + ' open across variants';
-  if (open.length === 0) {
-    body.innerHTML = '';
-    table.style.display = 'none';
-    empty.style.display = 'block';
-    return;
-  }
-  table.style.display = '';
-  empty.style.display = 'none';
-  body.innerHTML = open.map(g => `
-    <tr>
-      <td>${fmtHeld(g.held)}</td>
-      <td class="match" title="${g.match || ''}">${g.match || '—'}</td>
-      <td>${g.player || '—'}</td>
-      <td>${typePill(g.type)}</td>
-      <td class="num">${fmtOdds(g.odds)}</td>
-      <td class="num">$${(g.stake || 0).toFixed(2)}</td>
-      <td>${variantTags(g.variants, allLabels)}</td>
-    </tr>
-  `).join('');
-}
-</script>
-<script>
-// ----- Recent trades (closed) table -----
-function renderClosed(grouped, allLabels) {
-  const body = document.getElementById('closedBody');
-  const sub = document.getElementById('closedSub');
-  const empty = document.getElementById('closedEmpty');
-  const table = document.getElementById('closedTable');
-  const closed = grouped
-    .filter(g => g.closed)
-    .sort((a, b) => (b.exit_ts || b.entry_ts || 0) - (a.exit_ts || a.entry_ts || 0))
-    .slice(0, 100); // cap render at 100 rows
-  if (closed.length === 0) {
-    body.innerHTML = '';
-    table.style.display = 'none';
-    empty.style.display = 'block';
-    sub.textContent = '—';
-    return;
-  }
-  table.style.display = '';
-  empty.style.display = 'none';
-  // Aggregate summary: total unique trades + breakdown of reasons
-  const reasons = {};
-  closed.forEach(g => {
-    reasons[g.reason] = (reasons[g.reason] || 0) + 1;
   });
-  const reasonStr = Object.entries(reasons)
-    .map(([r,n]) => `${r}:${n}`).join('  ');
-  sub.textContent = `${closed.length} unique trades  |  ${reasonStr}`;
-
-  body.innerHTML = closed.map(g => `
-    <tr class="${winLossRowClass(g.pnl)}">
-      <td>${fmtClock(g.exit_ts || g.entry_ts)}</td>
-      <td class="match" title="${g.match || ''}">${g.match || '—'}</td>
-      <td>${g.player || '—'}</td>
-      <td>${typePill(g.type)}</td>
-      <td class="num">${fmtOdds(g.odds)}</td>
-      <td class="num">${fmtOdds(g.exit_odds)}</td>
-      <td class="num">${fmtHeld(g.held)}</td>
-      <td class="num pnl-cell">${fmt$(g.pnl)}</td>
-      <td>${reasonPill(g.reason)}</td>
-      <td>${variantTags(g.variants, allLabels)}</td>
-    </tr>
-  `).join('');
 }
 
-// ----- Refresh loop -----
-async function refresh() {
+// Downsample a series of points to ≤maxPoints by striding.
+function downsample(arr, maxPoints){
+  if (arr.length <= maxPoints) return arr;
+  const stride = Math.ceil(arr.length / maxPoints);
+  const out = [];
+  for (let i = 0; i < arr.length; i += stride) out.push(arr[i]);
+  // Always keep the last point
+  if (out[out.length - 1] !== arr[arr.length - 1]) out.push(arr[arr.length - 1]);
+  return out;
+}
+
+function updateChart(payload){
+  const strats = payload.strategies;
+  const history = payload.history || [];
+  const yTitle = state.mode === 'cum' ? 'cumulative PnL ($)' : '$ per minute (rolling 10m)';
+  chart.options.scales.y.title.text = yTitle;
+  const MAX_POINTS = 120;  // hard cap per series to keep chart snappy
+
+  const datasets = strats.map((s, idx) => {
+    const color = colorFor(s.label, idx);
+    const isPinned = state.pinned.has(s.label);
+    const anyPinned = state.pinned.size > 0;
+    let pts = [];
+    if (state.mode === 'cum'){
+      for (const row of history){
+        const v = row.pnl[s.label];
+        if (v !== undefined) pts.push({x: row.t / 60, y: v});
+      }
+      pts.push({x: payload.elapsed_min, y: s.total_pnl});
+    } else {
+      // Rolling 10m $/min. Single pass instead of nested lookup.
+      const windowSec = 600;
+      let j = 0;  // pointer to earliest row within window
+      for (let i = 0; i < history.length; i++){
+        const row = history[i];
+        while (j < i && (row.t - history[j].t) > windowSec) j++;
+        const earlier = history[j];
+        const dPnl = row.pnl[s.label] - (earlier.pnl[s.label] ?? 0);
+        const dT = (row.t - earlier.t) / 60;
+        if (dT > 0.1) pts.push({x: row.t / 60, y: dPnl / dT});
+      }
+    }
+    pts = downsample(pts, MAX_POINTS);
+    return {
+      label: s.label,
+      data: pts,
+      borderColor: color,
+      backgroundColor: color,
+      borderWidth: isPinned ? 2.2 : 1,
+      tension: 0.1,
+      pointRadius: 0,
+      pointHoverRadius: 3,
+      hidden: anyPinned && !isPinned,
+    };
+  });
+  chart.data.datasets = datasets;
+  chart.update('none');
+}
+
+function setMode(m){
+  state.mode = m;
+  document.getElementById('btnCum').classList.toggle('active', m==='cum');
+  document.getElementById('btnEdge').classList.toggle('active', m==='edge');
+  document.getElementById('chartTitle').textContent =
+    m==='cum' ? 'Cumulative PnL' : 'Rolling $/minute (10-min window)';
+  if (state.lastStats) updateChart(state.lastStats);
+}
+
+document.getElementById('btnCum').onclick = () => setMode('cum');
+document.getElementById('btnEdge').onclick = () => setMode('edge');
+
+// ---------- Leaderboard ----------
+function computeEdge(s){ return s.trades > 0 ? (s.total_pnl / s.trades) : 0; }
+function fmtMoney(v){
+  const s = v >= 0 ? '+' : '';
+  return s + '$' + v.toFixed(2);
+}
+function fmtPct(v){ return v.toFixed(1) + '%'; }
+
+function sortStrats(strats){
+  const key = state.sortBy;
+  const dir = state.sortDir === 'desc' ? -1 : 1;
+  return strats.slice().sort((a,b) => {
+    let av, bv;
+    if (key === 'label'){ av = a.label; bv = b.label; }
+    else if (key === 'edge'){ av = computeEdge(a); bv = computeEdge(b); }
+    else if (key === 'desc'){ av = a.desc || ''; bv = b.desc || ''; }
+    else { av = a[key]; bv = b[key]; }
+    if (av < bv) return -1*dir;
+    if (av > bv) return 1*dir;
+    return 0;
+  });
+}
+
+function renderLeaderboard(strats){
+  const sorted = sortStrats(strats);
+  const body = document.getElementById('lbBody');
+  body.innerHTML = '';
+  for (const s of sorted){
+    const tr = document.createElement('tr');
+    const edge = computeEdge(s);
+    const pnlClass = s.total_pnl >= 0 ? 'pnl-pos' : 'pnl-neg';
+    const edgeClass = edge >= 0 ? 'pnl-pos' : 'pnl-neg';
+    tr.innerHTML = `
+      <td class="label" style="cursor:pointer">${s.label}${state.pinned.has(s.label) ? ' ★' : ''}</td>
+      <td class="${pnlClass}">${fmtMoney(s.total_pnl)}</td>
+      <td>${s.trades}</td>
+      <td class="dim">${fmtPct(s.win_rate)}</td>
+      <td class="${edgeClass}">${fmtMoney(edge)}</td>
+      <td class="dim">${s.open_bets}</td>
+      <td class="desc">${s.desc || ''}</td>
+    `;
+    tr.querySelector('.label').onclick = (e) => {
+      e.stopPropagation();
+      if (state.pinned.has(s.label)) state.pinned.delete(s.label);
+      else state.pinned.add(s.label);
+      if (state.lastStats){ updateChart(state.lastStats); renderLeaderboard(strats); renderGrid(strats); }
+    };
+    body.appendChild(tr);
+  }
+  // Mark sorted header
+  document.querySelectorAll('#lbTable th').forEach(th => {
+    th.classList.toggle('sorted', th.dataset.sort === state.sortBy);
+  });
+}
+
+document.querySelectorAll('#lbTable th').forEach(th => {
+  th.onclick = () => {
+    const col = th.dataset.sort;
+    if (state.sortBy === col){
+      state.sortDir = state.sortDir === 'desc' ? 'asc' : 'desc';
+    } else {
+      state.sortBy = col;
+      state.sortDir = (col === 'label' || col === 'desc') ? 'asc' : 'desc';
+    }
+    if (state.lastStats) renderLeaderboard(state.lastStats.strategies);
+  };
+});
+
+// ---------- Element grid ----------
+// Rows defined declaratively. Each row: {section?, label, get: (s) => value, fmt?: (v) => str, cls?: (v,s) => className}
+const GRID_ROWS = [
+  { section: 'Performance' },
+  { label: 'PnL', get: s => s.total_pnl,
+    fmt: v => fmtMoney(v),
+    cls: v => v >= 0 ? 'pnl-pos' : 'pnl-neg' },
+  { label: 'Trades', get: s => s.trades, fmt: v => String(v), cls: () => 'num' },
+  { label: 'Win / Loss', get: s => s.winning + '/' + s.losing, fmt: v => v, cls: () => 'num' },
+  { label: 'Win rate', get: s => s.win_rate, fmt: v => fmtPct(v), cls: () => 'dim' },
+  { label: 'Edge/trade', get: s => computeEdge(s),
+    fmt: v => fmtMoney(v),
+    cls: v => v >= 0 ? 'pnl-pos' : 'pnl-neg' },
+  { label: 'Open bets', get: s => s.open_bets, fmt: v => String(v), cls: () => 'dim' },
+  { label: 'Commission', get: s => s.total_commission,
+    fmt: v => '-$' + Math.abs(v).toFixed(2), cls: () => 'dim' },
+  { section: 'Entry filters' },
+  { label: 'blocked_tier', get: s => s.entries_blocked_tier || 0, fmt: v => String(v), cls: () => 'dim' },
+  { label: 'blocked_odds_band', get: s => s.entries_blocked_odds_band || 0, fmt: v => String(v), cls: () => 'dim' },
+  { label: 'blocked_entry_state', get: s => s.entries_blocked_entry_state || 0, fmt: v => String(v), cls: () => 'dim' },
+  { label: 'blocked_doubles', get: s => s.entries_blocked_doubles || 0, fmt: v => String(v), cls: () => 'dim' },
+  { label: 'blocked_lay', get: s => s.entries_blocked_lay || 0, fmt: v => String(v), cls: () => 'dim' },
+  { label: 'blocked_loss_streak', get: s => s.entries_blocked_loss_streak || 0, fmt: v => String(v), cls: () => 'dim' },
+  { section: 'Pressure telemetry' },
+  { label: 'passed_pressure', get: s => s.entries_passed_pressure || 0, fmt: v => v > 0 ? String(v) : '—', cls: v => v > 0 ? 'num' : 'off' },
+  { label: 'blocked_pressure', get: s => s.entries_blocked_pressure || 0, fmt: v => v > 0 ? String(v) : '—', cls: v => v > 0 ? 'num' : 'off' },
+  { label: 'blocked_no_pressure', get: s => s.entries_blocked_no_pressure || 0, fmt: v => v > 0 ? String(v) : '—', cls: v => v > 0 ? 'num' : 'off' },
+  { label: 'pressure_unknown', get: s => s.entries_pressure_unknown || 0, fmt: v => v > 0 ? String(v) : '—', cls: v => v > 0 ? 'dim' : 'off' },
+  { section: 'Config' },
+  { label: 'Stake', get: s => s.stake_amount, fmt: v => '$' + Number(v).toFixed(0), cls: () => 'num' },
+  { label: 'Hard cap', get: s => s.hard_cap_dollars,
+    fmt: v => v ? '$' + Number(v).toFixed(2) : 'OFF',
+    cls: v => v ? 'num' : 'off' },
+];
+
+function renderGrid(strats){
+  const tbl = document.getElementById('gridTable');
+  // Header: row label col + one th per variant
+  let html = '<thead><tr><th class="rowhead">&nbsp;</th>';
+  strats.forEach((s, i) => {
+    const pinned = state.pinned.has(s.label);
+    const color = colorFor(s.label, i);
+    html += `<th class="varhead ${pinned ? 'pinned' : ''}" data-label="${s.label}" title="${s.desc}">
+              <span style="display:inline-block;width:8px;height:8px;background:${color};border-radius:50%;margin-right:4px;vertical-align:middle"></span>
+              ${s.label}${pinned ? ' ★' : ''}
+            </th>`;
+  });
+  html += '</tr></thead><tbody>';
+  for (const row of GRID_ROWS){
+    if (row.section){
+      html += `<tr><th class="section" colspan="${strats.length + 1}">${row.section}</th></tr>`;
+      continue;
+    }
+    html += `<tr><td class="rowhead">${row.label}</td>`;
+    for (const s of strats){
+      const v = row.get(s);
+      const cls = row.cls ? row.cls(v, s) : 'num';
+      const txt = row.fmt ? row.fmt(v) : String(v);
+      html += `<td class="${cls}">${txt}</td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</tbody>';
+  tbl.innerHTML = html;
+  // Hook variant headers to toggle pin
+  tbl.querySelectorAll('th.varhead').forEach(th => {
+    th.onclick = () => {
+      const lbl = th.dataset.label;
+      if (state.pinned.has(lbl)) state.pinned.delete(lbl);
+      else state.pinned.add(lbl);
+      if (state.lastStats){ updateChart(state.lastStats); renderLeaderboard(state.lastStats.strategies); renderGrid(strats); }
+    };
+  });
+}
+
+// ---------- Ticker ----------
+function renderTicker(strats){
+  // Flatten all bets across variants; tag with variant; sort by entry_ts desc; show top 50.
+  const rows = [];
+  for (const s of strats){
+    for (const b of (s.bets || [])){
+      rows.push({...b, variant: s.label});
+    }
+  }
+  rows.sort((a, b) => (b.entry_ts || 0) - (a.entry_ts || 0));
+  const tbody = document.getElementById('tickerBody');
+  const top = rows.slice(0, 50);
+  if (top.length === 0){ tbody.innerHTML = '<div style="color:var(--muted);padding:6px">No trades yet.</div>'; return; }
+  let html = '';
+  for (const r of top){
+    const closed = r.closed;
+    const pnlCls = (r.pnl != null) ? (r.pnl >= 0 ? 'pnl-pos' : 'pnl-neg') : '';
+    const pnlStr = (r.pnl != null) ? fmtMoney(r.pnl) : 'open';
+    html += `<div class="row ${closed ? 'closed' : 'open'}">
+      <div class="var">${r.variant}</div>
+      <div>${r.type.toUpperCase()}</div>
+      <div>${Number(r.odds).toFixed(2)}</div>
+      <div>${r.exit_odds ? Number(r.exit_odds).toFixed(2) : '—'}</div>
+      <div class="${pnlCls}">${pnlStr}</div>
+      <div class="match">${r.player} · ${r.match || ''} · ${r.reason || ''}</div>
+    </div>`;
+  }
+  tbody.innerHTML = html;
+}
+
+// ---------- Collapse toggles ----------
+function bindCollapse(headerId, bodyId){
+  const h = document.getElementById(headerId);
+  const b = document.getElementById(bodyId);
+  h.onclick = () => {
+    h.classList.toggle('collapsed');
+    b.classList.toggle('collapsed-body');
+  };
+}
+bindCollapse('gridToggle', 'gridWrap');
+bindCollapse('tickerToggle', 'tickerBody');
+
+// ---------- Bootstrap ----------
+initChart();
+
+async function poll(){
   try {
-    const res = await fetch('/api');
-    const data = await res.json();
-    renderCards(data);
-    renderChart(data);
-    const allLabels = data.strategies.map(s => s.label);
-    const grouped = groupBets(data.strategies);
-    renderOpen(grouped, allLabels);
-    renderClosed(grouped, allLabels);
-  } catch (e) {
-    document.getElementById('meta').textContent = 'connection error: ' + (e.message || e);
-    console.error(e);
+    const r = await fetch('/api', {cache:'no-store'});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    state.lastStats = data;
+    // Header meta
+    document.getElementById('elapsed').textContent = 'Elapsed: ' + (data.elapsed_min/60).toFixed(2) + 'h (' + data.elapsed_min.toFixed(0) + 'm)';
+    document.getElementById('liveMatches').textContent = 'Live: ' + (data.feed?.live_matches ?? '?');
+    const sigs = data.strategies[0]?.signals_detected ?? 0;
+    document.getElementById('signals').textContent = 'Signals: ' + sigs;
+    document.getElementById('pollStats').textContent = 'Strategies: ' + data.strategies.length;
+    document.getElementById('lastUpdate').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+    updateChart(data);
+    renderLeaderboard(data.strategies);
+    renderGrid(data.strategies);
+    renderTicker(data.strategies);
+  } catch (e){
+    document.getElementById('lastUpdate').textContent = 'ERR: ' + e.message;
   }
 }
-
-refresh();
-setInterval(refresh, 5000);
+poll();
+setInterval(poll, state.pollMs);
 </script>
 </body>
 </html>
